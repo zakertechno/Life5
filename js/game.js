@@ -2507,15 +2507,16 @@ const JobSystem = {
         this.switchJobEnhanced(targetPath, targetJob);
 
         // Tutorial triggers
+        let tutorialHandled = false;
         if (targetPath === 'temporary') {
             // Accepted a gig
-            TutorialSystem.onGigAccepted();
+            tutorialHandled = TutorialSystem.onGigAccepted();
         } else {
             // Accepted a real job
             TutorialSystem.onRealJobAccepted(targetJob.title);
         }
 
-        return { success: true, message: `¡Contratado como ${targetJob.title}!` };
+        return { success: true, message: `¡Contratado como ${targetJob.title}!`, tutorialHandled: tutorialHandled };
     },
 
     switchJobEnhanced(pathKey, jobObj) {
@@ -2913,7 +2914,7 @@ const TutorialSystem = {
                 if (workTab) workTab.click();
                 setTimeout(() => this.step3_AcceptGig(), 500);
             };
-        }, 1000);
+        }, 2500);
     },
 
     // STEP 3: Accept a Gig
@@ -2925,8 +2926,8 @@ const TutorialSystem = {
         // Show explanation modal - user can interact freely after closing it
         // The onGigAccepted() will be called when they accept any gig
         showGameAlert(
-            'Sin titulación, solo tienes acceso a <strong>trabajos temporales</strong> (gigs).<br><br>' +
-            '💡 <strong>Consejo:</strong> Acepta uno de los gigs disponibles para ganar dinero mientras estudias.<br><br>' +
+            'Sin titulación, solo tienes acceso a <strong>trabajos temporales</strong>.<br><br>' +
+            '💡 <strong>Consejo:</strong> Acepta uno de los trabajos disponibles para ganar dinero mientras estudias.<br><br>' +
             '🎓 Cuando termines tu formación, desbloquearás <strong>empleos fijos</strong> con mejores salarios.',
             'info',
             '🎒 Trabajos Temporales'
@@ -2942,13 +2943,28 @@ const TutorialSystem = {
             GameState.tutorialFlags.acceptedFirstGig = true;
             GameState.tutorialStep = 4; // Free play while studying
 
-            showGameAlert(
-                '¡Perfecto! Ahora tienes un trabajo temporal mientras estudias.<br><br>' +
-                'El juego ahora es libre. Avanza el tiempo con "Siguiente Mes" y espera a completar tu formación.',
-                'success',
-                '✅ ¡Primer Trabajo!'
-            );
+            // PREMIUM GIG ACCEPTANCE
+            const welcomeMsg = `
+                <div style="text-align: center; margin-bottom: 20px;">
+                    <div style="font-size: 4rem; margin-bottom: 10px; filter: drop-shadow(0 0 15px rgba(250, 204, 21, 0.4)); animation: bounceIn 0.6s cubic-bezier(0.68, -0.55, 0.265, 1.55);">⚡</div>
+                    <h3 style="color: #facc15; margin: 0; font-size: 1.5rem; text-shadow: 0 0 10px rgba(250, 204, 21, 0.3);">¡Trabajo Aceptado!</h3>
+                </div>
+
+                <div style="background: linear-gradient(145deg, rgba(30, 41, 59, 0.8), rgba(15, 23, 42, 0.6)); border: 1px solid rgba(250, 204, 21, 0.3); border-radius: 16px; padding: 20px; text-align: center; margin-bottom: 20px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);">
+                    <div style="font-size: 0.85rem; color: #94a3b8; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px;">Trabajo Temporal</div>
+                    <div style="font-size: 1.2rem; font-weight: 700; color: #f8fafc; margin-bottom: 10px;">Repártidor / Staff</div>
+                    <div style="font-size: 0.9rem; color: #cbd5e1;">Generarás ingresos mientras estudias.</div>
+                </div>
+
+                <p style="text-align: center; color: #cbd5e1; font-size: 0.9rem; line-height: 1.5; margin: 0;">
+                    El tutorial continúa en <strong>Modo Libre</strong>. Avanza el tiempo con "Siguiente Mes" hasta terminar tu formación.
+                </p>
+            `;
+
+            UI.showModal(' ', welcomeMsg, [{ text: '🚀 ¡Entendido!', style: 'success', fn: null }]);
+            return true; // Indicates tutorial modal handled the event
         }
+        return false;
     },
 
     // STEP 5: Degree completed
@@ -6403,15 +6419,37 @@ const UI = {
                     card.querySelector('.btn-apply-small').onclick = () => {
                         const res = JobSys.applyToJob(vac.title);
                         if (res.success) {
-                            let welcomeMsg = `Has sido contratado como <strong>${vac.title}</strong>.<br><br>
-                                    Salario: ${formatCurrency(vac.salary)}/mes.`;
+                            // PREMIUM WELCOME MESSAGE
+                            let welcomeMsg = `
+                                <div style="text-align: center; margin-bottom: 20px;">
+                                    <div style="font-size: 4rem; margin-bottom: 10px; filter: drop-shadow(0 0 15px rgba(74, 222, 128, 0.4)); animation: bounceIn 0.6s cubic-bezier(0.68, -0.55, 0.265, 1.55);">🤝</div>
+                                    <h3 style="color: #4ade80; margin: 0; font-size: 1.5rem; text-shadow: 0 0 10px rgba(74, 222, 128, 0.3);">¡Oferta Aceptada!</h3>
+                                </div>
+
+                                <div style="background: linear-gradient(145deg, rgba(30, 41, 59, 0.8), rgba(15, 23, 42, 0.6)); border: 1px solid rgba(56, 189, 248, 0.3); border-radius: 16px; padding: 20px; text-align: center; margin-bottom: 20px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);">
+                                    <div style="font-size: 0.85rem; color: #94a3b8; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px;">Puesto</div>
+                                    <div style="font-size: 1.4rem; font-weight: 700; color: #f8fafc; margin-bottom: 15px;">${vac.title}</div>
+                                    
+                                    <div style="display: inline-block; background: rgba(74, 222, 128, 0.15); border: 1px solid rgba(74, 222, 128, 0.3); padding: 8px 16px; border-radius: 20px;">
+                                        <span style="color: #4ade80; font-weight: 700; font-size: 1.1rem;">${formatCurrency(vac.salary)}/mes</span>
+                                    </div>
+                                </div>
+
+                                <p style="text-align: center; color: #cbd5e1; font-size: 0.95rem; line-height: 1.5; margin: 0;">
+                                    ¡Enhorabuena! Ahora formas parte del equipo. Tu primer sueldo llegará a final de mes.
+                                </p>
+                            `;
 
                             if (!GameState.tutorialState.job || vac.title.includes('Reponedor')) {
-                                // welcomeMsg += `<br><br>🔴 <strong>IMPORTANTE:</strong> El tiempo en este juego avanza por meses. Pulsa el botón <strong>"Siguiente Mes"</strong> (arriba a la derecha) para cobrar tu nómina y avanzar.`;
                                 GameState.tutorialState.job = true;
                             }
 
-                            UI.showModal('¡Contratado!', welcomeMsg, [{ text: '¡A trabajar!', style: 'success', fn: () => UI.updateJob(JobSys) }]);
+                            if (!res.tutorialHandled) {
+                                UI.showModal(' ', welcomeMsg, [{ text: '🚀 ¡Empezar!', style: 'success', fn: () => UI.updateJob(JobSys) }]);
+                            } else {
+                                // If tutorial handled it, just update header/dashboard silently in background
+                                UI.updateJob(JobSys);
+                            }
 
                             UI.updateHeader();
                             UI.updateDashboard();
@@ -7801,7 +7839,7 @@ const UI = {
     },
 
     checkStoryEvents() {
-        // console.log(`DEBUG: Checking Story Events. Year: ${GameState.year}, Month: ${GameState.month}`);
+        console.log(`DEBUG: Checking Story Events. Year: ${GameState.year}, Month: ${GameState.month}`);
 
         // EVENT 1: Year 1, Month 4
         if (GameState.year === 1 && GameState.month === 4) {
@@ -8034,7 +8072,12 @@ function nextTurn() {
         }
     }
 
+
     GameState.month++;
+
+    // MOVED: Check Story Events AFTER advancing time so they trigger on arrival
+    UI.checkStoryEvents();
+
     if (GameState.month > 12) {
         GameState.month = 1;
         GameState.year++;
@@ -8057,7 +8100,7 @@ function nextTurn() {
         GameState.currentYearIncome = { salary: 0, rental: 0, stocks: 0, company: 0 };
     }
 
-    UI.checkStoryEvents(); // CHECK EVENTS
+
 
     // Auto-save every 3 months (more frequent to prevent data loss)
     if (GameState.month % 3 === 0) {
