@@ -2971,7 +2971,6 @@ const TutorialSystem = {
 
                 <div style="background: linear-gradient(145deg, rgba(30, 41, 59, 0.8), rgba(15, 23, 42, 0.6)); border: 1px solid rgba(250, 204, 21, 0.3); border-radius: 16px; padding: 20px; text-align: center; margin-bottom: 20px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);">
                     <div style="font-size: 0.85rem; color: #94a3b8; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px;">Trabajo Temporal</div>
-                    <div style="font-size: 1.2rem; font-weight: 700; color: #f8fafc; margin-bottom: 10px;">Repártidor / Staff</div>
                     <div style="font-size: 0.9rem; color: #cbd5e1;">Generarás ingresos mientras estudias.</div>
                 </div>
 
@@ -3292,11 +3291,34 @@ const TutorialSystem = {
 
         // 1. Congratulate Modal
         // 1. Congratulate Modal
+        // 1. Congratulate Modal with Premium Visuals
+        const themeColor = '#f59e0b'; // Amber/Gold
+        const icon = '🔑';
+
+        let indepMsg = `
+            <div style="text-align: center; margin-bottom: 20px;">
+                <div style="font-size: 4rem; margin-bottom: 10px; filter: drop-shadow(0 0 15px ${themeColor}66); animation: bounceIn 0.6s cubic-bezier(0.68, -0.55, 0.265, 1.55);">${icon}</div>
+                <h3 style="color: ${themeColor}; margin: 0; font-size: 1.6rem; text-shadow: 0 0 10px ${themeColor}4d; font-weight: 800; letter-spacing: 1px;">¡INDEPENDENCIA!</h3>
+            </div>
+
+            <div style="background: linear-gradient(145deg, rgba(30, 41, 59, 0.8), rgba(15, 23, 42, 0.6)); border: 1px solid ${themeColor}4d; border-radius: 16px; padding: 25px; text-align: center; margin-bottom: 25px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);">
+                <div style="font-size: 0.85rem; color: #94a3b8; text-transform: uppercase; letter-spacing: 1.5px; margin-bottom: 10px;">Nueva Etapa Desbloqueada</div>
+                <div style="font-size: 1.4rem; font-weight: 700; color: #f8fafc; margin-bottom: 15px;">Control Financiero Total</div>
+                
+                <div style="display: inline-block; background: ${themeColor}26; border: 1px solid ${themeColor}4d; padding: 10px 20px; border-radius: 30px;">
+                    <span style="color: ${themeColor}; font-weight: 700; font-size: 1.1rem;">Estado: Emancipado</span>
+                </div>
+            </div>
+
+            <p style="text-align: center; color: #cbd5e1; font-size: 1rem; line-height: 1.6; margin: 0; padding: 0 10px;">
+                ¡Enhorabuena! Te has independizado (aunque sea a un sofá).<br>
+                Ahora eres responsable de tus propias finanzas. Vamos a ver cómo van.
+            </p>
+        `;
+
         UI.showModal(
-            '🔑 ¡Independencia!',
-            '¡Enhorabuena! Te has independizado (aunque sea a un sofá).<br><br>' +
-            '🚀 <strong>Nueva Etapa Desbloqueada</strong><br>' +
-            'Ahora eres responsable de tus propias finanzas. Vamos a ver cómo van.',
+            ' ',
+            indepMsg,
             [{
                 text: '🚀 Ver mis Finanzas',
                 style: 'success',
@@ -3338,17 +3360,33 @@ const TutorialSystem = {
                                         'Entendido',
                                         () => {
                                             this.hideOverlay();
-                                            this.removeHighlights();
-                                            this.hideTooltip();
-
-                                            // Final message
+                                            // Next: Monthly Flow (New Step)
                                             setTimeout(() => {
-                                                showGameAlert(
-                                                    '🎉 <strong>¡Tutorial Finalizado!</strong><br><br>' +
-                                                    'Ya conoces lo básico. Trabaja, invierte y hazte millonario.<br><br>' +
-                                                    'Suerte en la vida real...',
-                                                    'success',
-                                                    '🎓 Graduado'
+                                                const mFlow = document.querySelector('.metric-card.monthly-flow');
+                                                if (mFlow) this.addHighlight('.metric-card.monthly-flow');
+
+                                                this.showTooltip(
+                                                    '.metric-card.monthly-flow',
+                                                    '📉 Flujo Mensual',
+                                                    'Es la diferencia entre tus ingresos y gastos. Mantenlo positivo para acumular riqueza cada mes.',
+                                                    'Siguiente',
+                                                    () => {
+                                                        this.removeHighlights();
+                                                        this.hideTooltip();
+
+                                                        // Final message
+                                                        setTimeout(() => {
+                                                            showGameAlert(
+                                                                '🎉 <strong>¡Tutorial Finalizado!</strong><br><br>' +
+                                                                'Ya conoces lo básico. Trabaja, invierte y hazte millonario.<br><br>' +
+                                                                'Suerte en la vida real...',
+                                                                'success',
+                                                                '🎓 Graduado'
+                                                            );
+                                                            GameState.tutorialFlags.tutorialComplete = true;
+                                                            PersistenceModule.saveGame();
+                                                        }, 500);
+                                                    }
                                                 );
                                                 GameState.tutorialFlags.tutorialComplete = true;
                                                 PersistenceModule.saveGame();
@@ -3361,7 +3399,8 @@ const TutorialSystem = {
                     }, 500);
 
                 }
-            }]
+            }],
+            true
         );
     },
 
@@ -3905,7 +3944,7 @@ const UI = {
                     <span style="display:block; color:#94a3b8; font-size:0.7rem; text-transform: uppercase; letter-spacing: 1px; margin-bottom:8px;">Caja (Efectivo)</span>
                     <span style="font-size:1.8rem; font-weight:800; color:#4ade80; text-shadow: 0 0 20px rgba(34, 197, 94, 0.3);">${formatCurrency(cash)}</span>
                 </div>
-                <div style="flex:1; min-width: 160px; background: linear-gradient(145deg, ${monthlyFlow >= 0 ? 'rgba(74, 222, 128, 0.1), rgba(34, 197, 94, 0.05)' : 'rgba(248, 113, 113, 0.1), rgba(239, 68, 68, 0.05)'}); border: 1px solid ${monthlyFlow >= 0 ? 'rgba(74, 222, 128, 0.3)' : 'rgba(248, 113, 113, 0.3)'}; border-radius: 16px; padding: 20px; text-align: center;">
+                <div class="metric-card monthly-flow" style="flex:1; min-width: 160px; background: linear-gradient(145deg, ${monthlyFlow >= 0 ? 'rgba(74, 222, 128, 0.1), rgba(34, 197, 94, 0.05)' : 'rgba(248, 113, 113, 0.1), rgba(239, 68, 68, 0.05)'}); border: 1px solid ${monthlyFlow >= 0 ? 'rgba(74, 222, 128, 0.3)' : 'rgba(248, 113, 113, 0.3)'}; border-radius: 16px; padding: 20px; text-align: center;">
                     <div style="font-size: 2.5rem; margin-bottom: 8px; filter: drop-shadow(0 0 15px ${monthlyFlow >= 0 ? 'rgba(74, 222, 128, 0.4)' : 'rgba(248, 113, 113, 0.4)'});">${monthlyFlow >= 0 ? '📈' : '📉'}</div>
                     <span style="display:block; color:#94a3b8; font-size:0.7rem; text-transform: uppercase; letter-spacing: 1px; margin-bottom:8px;">Flujo Mensual</span>
                     <span style="font-size:1.5rem; font-weight:800; color:${monthlyFlow >= 0 ? '#4ade80' : '#f87171'}; text-shadow: 0 0 15px ${monthlyFlow >= 0 ? 'rgba(74, 222, 128, 0.3)' : 'rgba(248, 113, 113, 0.3)'};">${monthlyFlow >= 0 ? '+' : ''}${formatCurrency(monthlyFlow)}</span>
