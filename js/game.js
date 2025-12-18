@@ -1409,7 +1409,12 @@ const LifestyleModule = {
         GameState.lifestyle[category] = id;
         GameState.expenses = this.calculateTotal();
 
-        return { success: true, message: `¡Actualizado! Pagados ${formatCurrency(upfront)} iniciales.` };
+        // Tutorial Trigger: First independent housing
+        if (category === 'housing' && id !== 'parents' && !GameState.tutorialFlags.independent) {
+            TutorialSystem.step9_Independence();
+        }
+
+        return { success: true, message: `¡Has contratado: ${item.name}` };
     }
 };
 const EducationModule = {
@@ -2739,6 +2744,12 @@ const TutorialSystem = {
 
         GameState.tutorialStep = 1;
 
+        // Force navigation to Education Tab
+        document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+        document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+        document.getElementById('education-view').classList.add('active');
+        document.querySelector(`button[data-view="education"]`).classList.add('active');
+
         // Create education choice modal
         const overlay = document.createElement('div');
         overlay.className = 'tutorial-overlay';
@@ -2840,40 +2851,69 @@ const TutorialSystem = {
     step2_GoToWork() {
         if (GameState.tutorialFlags.wentToWorkFirst) return;
 
+        this.injectStyles();
         GameState.tutorialStep = 2;
 
         // Update UI to show education status
         UI.updateEducation(EducationModule);
 
-        // Wait a moment, then show overlay and highlight Work tab
+        // Wait a moment, then show a modal with button to go to Work
         setTimeout(() => {
-            this.showOverlay();
-            this.addHighlight('.b-nav-item[data-view="job"]');
+            const overlay = document.createElement('div');
+            overlay.className = 'tutorial-overlay';
+            overlay.style.display = 'flex';
+            overlay.style.alignItems = 'center';
+            overlay.style.justifyContent = 'center';
+            overlay.innerHTML = `
+                <div style="
+                    background: linear-gradient(145deg, #1e293b, #0f172a);
+                    border: 2px solid rgba(56, 189, 248, 0.4);
+                    border-radius: 20px;
+                    padding: 30px;
+                    max-width: 380px;
+                    width: 90%;
+                    text-align: center;
+                    box-shadow: 0 30px 60px rgba(0, 0, 0, 0.6), 0 0 40px rgba(56, 189, 248, 0.15);
+                    animation: tutorialSlideIn 0.3s ease-out;
+                ">
+                    <div style="font-size: 3rem; margin-bottom: 15px; filter: drop-shadow(0 0 15px rgba(56, 189, 248, 0.4));">💼</div>
+                    <h2 style="color: #38bdf8; margin: 0 0 15px 0; font-size: 1.3rem;">¡Ya estás matriculado!</h2>
+                    <p style="color: #e2e8f0; margin: 0 0 20px 0; font-size: 0.95rem; line-height: 1.5;">
+                        Mientras estudias, puedes ganar dinero con <strong style="color: #4ade80;">trabajos temporales</strong>.
+                    </p>
+                    <p style="color: #94a3b8; margin: 0 0 25px 0; font-size: 0.85rem;">
+                        ¡Busca tu primer trabajo para empezar a ahorrar!
+                    </p>
+                    <button id="tutorial-go-work" style="
+                        background: linear-gradient(135deg, #38bdf8, #0ea5e9);
+                        border: none;
+                        color: white;
+                        padding: 14px 30px;
+                        border-radius: 12px;
+                        font-size: 1rem;
+                        font-weight: 700;
+                        cursor: pointer;
+                        width: 100%;
+                        transition: all 0.2s;
+                        box-shadow: 0 4px 15px rgba(56, 189, 248, 0.3);
+                    ">💼 Ir a Trabajo</button>
+                </div>
+            `;
+            document.body.appendChild(overlay);
 
-            this.showTooltip(
-                '.b-nav-item[data-view="job"]',
-                'Trabaja mientras estudias',
-                'Mientras estudias puedes ganar dinero con trabajos temporales. ¡Haz click en la pestaña Trabajo!',
-                'Entendido',
-                () => {
-                    // Keep overlay until they click Work tab
-                }
-            );
-
-            // Listen for Work tab click
-            const workTab = document.querySelector('.b-nav-item[data-view="job"]');
-            if (workTab) {
-                const originalClick = workTab.onclick;
-                workTab.onclick = (e) => {
-                    this.hideOverlay();
-                    this.removeHighlights();
-                    this.hideTooltip();
-                    GameState.tutorialFlags.wentToWorkFirst = true;
-                    if (originalClick) originalClick.call(workTab, e);
-                    setTimeout(() => this.step3_AcceptGig(), 500);
-                };
-            }
-        }, 1500);
+            // Button handler
+            const btn = overlay.querySelector('#tutorial-go-work');
+            btn.onmouseenter = () => { btn.style.transform = 'translateY(-2px)'; };
+            btn.onmouseleave = () => { btn.style.transform = 'translateY(0)'; };
+            btn.onclick = () => {
+                overlay.remove();
+                GameState.tutorialFlags.wentToWorkFirst = true;
+                // Navigate to Work tab
+                const workTab = document.querySelector('.b-nav-item[data-view="job"]');
+                if (workTab) workTab.click();
+                setTimeout(() => this.step3_AcceptGig(), 500);
+            };
+        }, 1000);
     },
 
     // STEP 3: Accept a Gig
@@ -2882,21 +2922,16 @@ const TutorialSystem = {
 
         GameState.tutorialStep = 3;
 
-        // Show explanation modal first
+        // Show explanation modal - user can interact freely after closing it
+        // The onGigAccepted() will be called when they accept any gig
         showGameAlert(
-            'Sin titulación, solo tienes acceso a trabajos temporales (gigs).<br><br>' +
-            '💡 <strong>Consejo:</strong> Acepta gigs mientras estudias para tener dinero extra.<br><br>' +
-            'Cuando termines tu formación, desbloquearás <strong>empleos fijos</strong>.',
+            'Sin titulación, solo tienes acceso a <strong>trabajos temporales</strong> (gigs).<br><br>' +
+            '💡 <strong>Consejo:</strong> Acepta uno de los gigs disponibles para ganar dinero mientras estudias.<br><br>' +
+            '🎓 Cuando termines tu formación, desbloquearás <strong>empleos fijos</strong> con mejores salarios.',
             'info',
             '🎒 Trabajos Temporales'
         );
-
-        // After modal closes, highlight gig buttons
-        setTimeout(() => {
-            this.showOverlay();
-            this.addHighlight('.gig-card');
-            this.addHighlight('.gig-card button');
-        }, 500);
+        // No overlay - user can click on gigs freely after closing the modal
     },
 
     // Called when player accepts any gig
@@ -2981,20 +3016,15 @@ const TutorialSystem = {
     step6_AcceptRealJob() {
         GameState.tutorialStep = 6;
 
-        this.showOverlay();
-        // Highlight career job cards, not gigs
-        setTimeout(() => {
-            this.addHighlight('.career-job-card');
-            this.addHighlight('.career-job-card button');
-
-            this.showTooltip(
-                '.career-job-card',
-                'Tu Primer Empleo Fijo',
-                'Elige un empleo de la lista. ¡Los trabajos fijos pagan mejor y te permiten ascender!',
-                'Entendido',
-                () => { }
-            );
-        }, 300);
+        // Show explanation modal - user can interact freely after closing
+        showGameAlert(
+            'Ahora que tienes tu título, puedes acceder a <strong>empleos fijos</strong>.<br><br>' +
+            '💼 Los empleos fijos pagan mejor y te permiten <strong>ascender</strong>.<br><br>' +
+            '👆 Elige un empleo de la sección "Empleos Disponibles" para continuar.',
+            'success',
+            '🎉 ¡Empleos Desbloqueados!'
+        );
+        // No overlay - user can click on jobs freely after closing the modal
     },
 
     // Called when player accepts a real job (not gig)
@@ -3060,9 +3090,205 @@ const TutorialSystem = {
         );
     },
 
+    // STEP 8: Force Housing (Mom kicks you out)
+    step8_ForceHousing() {
+        GameState.tutorialStep = 8;
+        GameState.tutorialState.forceHousing = true;
+
+        this.injectStyles();
+
+        // Custom Overlay with Direct Action
+        const overlay = document.createElement('div');
+        overlay.className = 'tutorial-overlay';
+        overlay.style.display = 'flex';
+        overlay.style.alignItems = 'center';
+        overlay.style.justifyContent = 'center';
+        overlay.innerHTML = `
+            <div style="
+                background: linear-gradient(145deg, #1e293b, #0f172a);
+                border: 2px solid rgba(244, 63, 94, 0.4);
+                border-radius: 24px;
+                padding: 35px;
+                max-width: 450px;
+                width: 90%;
+                text-align: center;
+                box-shadow: 0 30px 60px rgba(0, 0, 0, 0.6), 0 0 50px rgba(244, 63, 94, 0.15);
+                animation: tutorialSlideIn 0.4s ease-out;
+            ">
+                <div style="font-size: 4rem; margin-bottom: 15px; filter: drop-shadow(0 0 20px rgba(244, 63, 94, 0.4)); animation: tutorialShake 0.5s infinite;">🏠</div>
+                <h2 style="color: #f43f5e; margin: 0 0 15px 0; font-size: 1.6rem; text-shadow: 0 0 20px rgba(244, 63, 94, 0.3);">¡Te Echan de Casa!</h2>
+                
+                <div style="background: rgba(255, 255, 255, 0.05); padding: 15px; border-radius: 12px; margin-bottom: 20px; text-align: left; font-style: italic; color: #cbd5e1;">
+                    "Hijo, ya vas siendo mayor. Cómprate algo bonito con estos 300€, pero espabila porque mañana usamos tu habitación para el gimnasio."
+                </div>
+
+                <p style="color: #e2e8f0; margin: 0 0 25px 0; font-size: 1rem;">
+                    😱 <strong>¡Emergencia!</strong> Necesitas un techo bajo el que dormir hoy mismo.
+                </p>
+
+                <button id="tutorial-go-housing-btn" style="
+                    background: linear-gradient(135deg, #f43f5e, #e11d48);
+                    border: none;
+                    color: white;
+                    padding: 16px 30px;
+                    border-radius: 12px;
+                    font-size: 1.1rem;
+                    font-weight: 700;
+                    cursor: pointer;
+                    width: 100%;
+                    transition: all 0.2s;
+                    box-shadow: 0 4px 15px rgba(244, 63, 94, 0.4);
+                ">📦 Buscar Vivienda</button>
+            </div>
+            <style>
+                @keyframes tutorialShake {
+                    0% { transform: rotate(0deg); }
+                    25% { transform: rotate(-5deg); }
+                    75% { transform: rotate(5deg); }
+                    100% { transform: rotate(0deg); }
+                }
+            </style>`;
+
+        overlay.querySelector('#tutorial-go-housing-btn').onclick = () => {
+            overlay.remove();
+
+            // Navigate to Lifestyle
+            document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+            document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+            document.getElementById('lifestyle-view').classList.add('active');
+
+            // Update active state in nav
+            const lifestyleBtn = document.querySelector(`button[data-view="lifestyle"]`);
+            if (lifestyleBtn) lifestyleBtn.classList.add('active');
+
+            // Sync bottom nav (mobile)
+            document.querySelectorAll('.b-nav-item').forEach(b => b.classList.remove('active'));
+            const mobileBtn = document.querySelector(`.b-nav-item[data-view="lifestyle"]`);
+            if (mobileBtn) mobileBtn.classList.add('active');
+
+            UI.updateLifestyle(LifestyleModule);
+
+            // Highlight Housing Section
+            setTimeout(() => {
+                const housingSection = document.getElementById('housing-options');
+                if (housingSection) {
+                    housingSection.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    this.addHighlight('#housing-options');
+                }
+
+                // Highlight Sofa button specifically
+                const sofaButtons = Array.from(document.querySelectorAll('button'));
+                const sofaBtn = sofaButtons.find(b => b.innerText.includes('Sofá') || (b.getAttribute('onclick') && b.getAttribute('onclick').includes('sofa')));
+
+                if (sofaBtn) {
+                    this.addHighlight(sofaBtn);
+                    this.showTooltip(
+                        sofaBtn, // Pass element directly if possible, or selector string
+                        'Opción de Emergencia',
+                        'Es cutre, pero es barato. ¡Alquila el sofá de tu amigo por ahora!',
+                        'Vale',
+                        null
+                    );
+                } else {
+                    // Fallback if button not found
+                    this.showTooltip(
+                        '#housing-options',
+                        'Busca Casa',
+                        'Selecciona "Sofá de un amigo" para no dormir en la calle.',
+                        'Ok',
+                        null
+                    );
+                }
+            }, 600);
+        };
+    },
+
+    // STEP 9: Independence Celebration & Summary Tour
+    step9_Independence() {
+        GameState.tutorialStep = 9;
+        GameState.tutorialState.forceHousing = false; // Release lock
+        GameState.tutorialFlags.independent = true;
+        this.removeHighlights();
+        this.hideTooltip();
+
+        // 1. Congratulate Modal
+        showGameAlert(
+            '¡Enhorabuena! Te has independizado (aunque sea a un sofá).<br><br>' +
+            '🚀 <strong>Nueva Etapa Desbloqueada</strong><br>' +
+            'Ahora eres responsable de tus propias finanzas. Vamos a ver cómo van.',
+            'success',
+            '🔑 ¡Independencia!'
+        );
+
+        // 2. Navigate to Summary after modal closes (handled by user action usually, 
+        //    but since showGameAlert is non-blocking, we need a small delay or manual navigation)
+
+        setTimeout(() => {
+            // Force navigation to Dashboard/Summary
+            document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+            document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+            document.getElementById('dashboard-view').classList.add('active');
+            document.querySelector(`button[data-view="dashboard"]`).classList.add('active');
+
+            // Update Dashboard
+            UI.updateDashboard();
+
+            // Highlight Sections
+            this.showOverlay();
+
+            // Sequence of highlights
+            setTimeout(() => {
+                // Highlight Net Worth
+                const netWorth = document.querySelector('.metric-card.net-worth');
+                if (netWorth) this.addHighlight('.metric-card.net-worth');
+
+                this.showTooltip(
+                    '.metric-card.net-worth',
+                    '💰 Patrimonio Neto',
+                    'Tu valor total (Dinero + Activos - Deudas). Obviamente, quieres que esto suba hasta la luna.',
+                    'Siguiente',
+                    () => {
+                        this.removeHighlights();
+                        // Next: Cash Flow
+                        setTimeout(() => {
+                            const cash = document.querySelector('.metric-card.cash');
+                            if (cash) this.addHighlight('.metric-card.cash');
+
+                            this.showTooltip(
+                                '.metric-card.cash',
+                                '💵 Caja (Efectivo)',
+                                'El dinero líquido que tienes para gastar o invertir. ¡Si llega a cero, game over!',
+                                'Entendido',
+                                () => {
+                                    this.hideOverlay();
+                                    this.removeHighlights();
+                                    this.hideTooltip();
+
+                                    // Final message
+                                    setTimeout(() => {
+                                        showGameAlert(
+                                            '🎉 <strong>¡Tutorial Finalizado!</strong><br><br>' +
+                                            'Ya conoces lo básico. Trabaja, invierte y hazte millonario.<br><br>' +
+                                            'Suerte en la vida real...',
+                                            'success',
+                                            '🎓 Graduado'
+                                        );
+                                        GameState.tutorialFlags.tutorialComplete = true;
+                                        PersistenceModule.saveGame();
+                                    }, 500);
+                                }
+                            );
+                        }, 300);
+                    }
+                );
+            }, 500);
+
+        }, 2000); // Give time to read the alert
+    },
+
     // Check if tutorial should start
     checkStart() {
-        if (GameState.tutorialFlags.tutorialComplete) return;
+        if (GameState.tutorialFlags.tutorialComplete && GameState.tutorialStep !== 8) return;
         if (GameState.tutorialStep === 0 && !GameState.tutorialFlags.educationChosen) {
             this.step1_ChooseEducation();
         }
@@ -3590,10 +3816,15 @@ const UI = {
 
             <!-- KPI ROW - Premium Design -->
             <div class="summary-kpi-row" style="display:flex; flex-wrap:wrap; gap:15px; margin-bottom:25px;">
-                <div style="flex:1.5; min-width: 200px; background: linear-gradient(145deg, rgba(250, 204, 21, 0.1), rgba(251, 191, 36, 0.05)); border: 1px solid rgba(250, 204, 21, 0.3); border-radius: 16px; padding: 20px; text-align: center;">
+                <div class="metric-card net-worth" style="flex:1.5; min-width: 200px; background: linear-gradient(145deg, rgba(250, 204, 21, 0.1), rgba(251, 191, 36, 0.05)); border: 1px solid rgba(250, 204, 21, 0.3); border-radius: 16px; padding: 20px; text-align: center;">
                     <div style="font-size: 2.5rem; margin-bottom: 8px; filter: drop-shadow(0 0 15px rgba(250, 204, 21, 0.4));">👑</div>
                     <span style="display:block; color:#94a3b8; font-size:0.7rem; text-transform: uppercase; letter-spacing: 1px; margin-bottom:8px;">Patrimonio Neto</span>
                     <span style="font-size:1.8rem; font-weight:800; color:#facc15; text-shadow: 0 0 20px rgba(250, 204, 21, 0.3);">${formatCurrency(nw)}</span>
+                </div>
+                <div class="metric-card cash" style="flex:1.5; min-width: 200px; background: linear-gradient(145deg, rgba(34, 197, 94, 0.1), rgba(74, 222, 128, 0.05)); border: 1px solid rgba(34, 197, 94, 0.3); border-radius: 16px; padding: 20px; text-align: center;">
+                    <div style="font-size: 2.5rem; margin-bottom: 8px; filter: drop-shadow(0 0 15px rgba(34, 197, 94, 0.4));">💵</div>
+                    <span style="display:block; color:#94a3b8; font-size:0.7rem; text-transform: uppercase; letter-spacing: 1px; margin-bottom:8px;">Caja (Efectivo)</span>
+                    <span style="font-size:1.8rem; font-weight:800; color:#4ade80; text-shadow: 0 0 20px rgba(34, 197, 94, 0.3);">${formatCurrency(cash)}</span>
                 </div>
                 <div style="flex:1; min-width: 160px; background: linear-gradient(145deg, ${monthlyFlow >= 0 ? 'rgba(74, 222, 128, 0.1), rgba(34, 197, 94, 0.05)' : 'rgba(248, 113, 113, 0.1), rgba(239, 68, 68, 0.05)'}); border: 1px solid ${monthlyFlow >= 0 ? 'rgba(74, 222, 128, 0.3)' : 'rgba(248, 113, 113, 0.3)'}; border-radius: 16px; padding: 20px; text-align: center;">
                     <div style="font-size: 2.5rem; margin-bottom: 8px; filter: drop-shadow(0 0 15px ${monthlyFlow >= 0 ? 'rgba(74, 222, 128, 0.4)' : 'rgba(248, 113, 113, 0.4)'});">${monthlyFlow >= 0 ? '📈' : '📉'}</div>
@@ -4066,7 +4297,7 @@ const UI = {
                                 <span style="display:block; color:#94a3b8; font-size:0.7rem; text-transform: uppercase; letter-spacing: 1px; margin-bottom:8px;">Deuda Total</span>
                                 <span style="font-size:1.3rem; font-weight:800; color:#f87171; text-shadow: 0 0 15px rgba(248, 113, 113, 0.3);">-${formatCurrency(totalDebt)}</span>
                             </div>
-                            <div class="bank-stat-card" style="flex:1; min-width: 140px; background: linear-gradient(145deg, rgba(74, 222, 128, 0.1), rgba(34, 197, 94, 0.05)); border: 1px solid rgba(74, 222, 128, 0.3); border-radius: 16px; padding: 20px; text-align: center;">
+                            <div class="bank-stat-card metric-card cash" style="flex:1; min-width: 140px; background: linear-gradient(145deg, rgba(74, 222, 128, 0.1), rgba(34, 197, 94, 0.05)); border: 1px solid rgba(74, 222, 128, 0.3); border-radius: 16px; padding: 20px; text-align: center;">
                                 <div style="font-size: 2rem; margin-bottom: 8px; filter: drop-shadow(0 0 10px rgba(74, 222, 128, 0.4));">💳</div>
                                 <span style="display:block; color:#94a3b8; font-size:0.7rem; text-transform: uppercase; letter-spacing: 1px; margin-bottom:8px;">Límite Crédito</span>
                                 <span style="font-size:1.3rem; font-weight:800; color:#4ade80; text-shadow: 0 0 15px rgba(74, 222, 128, 0.3);">${formatCurrency(limit)}</span>
@@ -4952,120 +5183,18 @@ const UI = {
     },
 
     checkContextualTutorial(view) {
-        if (!GameState.tutorialState) GameState.tutorialState = {}; // Safety init for old saves
-        if (GameState.tutorialState[view]) return; // Already seen
-
-        // Special Block for Lifestyle during forced sequence
-        if (view === 'lifestyle' && GameState.tutorialState.forceHousing) return;
-
-        let steps = [];
-        if (view === 'education') {
-            steps = [
-                { title: '🎓 Formación', msg: 'Acabas de terminar la ESO. Es hora de decidir:<br><br>¿<strong>FP</strong> o <strong>BACHILLERATO</strong>?' },
-                { title: '💼 Siguiente Paso', msg: 'Una vez elijas tu camino, ve a la pestaña <strong>EMPLEO</strong> para buscar trabajo.' }
-            ];
-        } else if (view === 'job') {
-            if (GameState.jobTitle === 'Desempleado' || GameState.salary === 0) {
-                steps = [
-                    { title: '💼 Empleo', msg: 'Sin titulación las opciones son <strong>pocas</strong>.<br><br>Pero necesitas ingresos para pagar tus estudios.' },
-                    { title: '⚡ Trabajos Temporales', msg: 'Mientras estudias, trabaja en <strong>TRABAJOS TEMPORALES</strong>.<br><br>Son flexibles y te darán el dinero necesario para vivir.' },
-                    { title: '⏭️ Siguiente Mes', msg: 'Una vez elijas un trabajo temporal, dale al botón <strong>SIGUIENTE MES</strong> (arriba a la derecha).<br><br>El juego funciona por turnos mensuales.' }
-                ];
-            } else {
-                steps = [
-                    { title: '💼 Trabajo', msg: 'Aquí gestionas tu carrera profesional. Ganas experiencia mes a mes.' },
-                    { title: '🚀 Ascensos', msg: 'Cuando cumplas los requisitos, solicita un ascenso para aumentar tus ingresos.' }
-                ];
-            }
-        } else if (view === 'market') {
-            steps = [
-                { title: '📈 La Bolsa', msg: 'Compra barato, vende caro. Las acciones cambian de precio cada mes según la tendencia del mercado.' },
-                { title: '⚠️ Riesgo', msg: 'Puedes ganar mucho o perderlo todo. Diversifica tu cartera.' }
-            ];
-        } else if (view === 'real-estate') {
-            steps = [
-                { title: '🏡 Inmobiliaria', msg: 'Los inmuebles dan rentas mensuales (alquiler) y se revalorizan con el tiempo.' },
-                { title: '🏦 Hipotecas', msg: 'Puedes comprar dando solo el 20% de entrada y pidiendo una hipoteca al banco. ¡Apalancamiento!' }
-            ];
-        } else if (view === 'bank') {
-            steps = [
-                { title: '🏦 Banco', msg: 'Aquí gestiones tu deuda. Puedes pedir préstamos personales si necesitas efectivo urgente (pero intereses altos).' },
-                { title: '📉 Amortizar', msg: 'Si tienes deudas, intenta pagarlas cuanto antes para reducir los intereses mensuales.' }
-            ];
-        } else if (view === 'company_summary') {
-            steps = [
-                { title: '📊 Resumen Empresa', msg: 'Tu cuadro de mando. Vigila la <strong>Caja</strong> (efectivo disponible) y el <strong>Beneficio Mensual</strong>.' },
-                { title: '💡 Automatizar', msg: 'Aquí podrás contratar gerentes para que la empresa funcione sola en el futuro. Después, visita la pestaña <strong>Finanzas</strong> para asignarte un sueldo.' }
-            ];
-        } else if (view === 'company_product') {
-            steps = [
-                { title: '📦 Producto', msg: 'Define la calidad y el precio. Si subes mucho el precio sin calidad, los clientes se irán.' },
-                { title: '🧠 I+D', msg: 'Invierte en mejorar el producto para poder cobrar más.' }
-            ];
-        } else if (view === 'company_marketing') {
-            steps = [
-                { title: '📣 Marketing', msg: 'La publicidad trae clientes. Ajusta el presupuesto según tu capacidad de producción.' }
-            ];
-        } else if (view === 'lifestyle') {
-            steps = [
-                { title: '💸 Estilo de Vida', msg: 'Tus gastos fijos dependen de cómo vives (casa, comida, transporte...).' },
-                { title: '📉 Ahorro vs Lujos', msg: 'Para ahorrar, mantén tus gastos bajos. Pero ojo, vivir en la miseria cansa. Podrás mejorar tu nivel de vida poco a poco.' },
-                { title: '🔒 Progresión', msg: 'Solo verás la siguiente mejora disponible. No puedes comprar un Ferrari si vas en autobús.' }
-            ];
-        } else if (view === 'company_staff') {
-            steps = [
-                { title: '👥 Personal', msg: 'Tus empleados determinan la eficiencia y calidad. Contrata con cuidado.' },
-                { title: '⚡ Productividad', msg: 'Despide a los vagos y mantén a los talentos. Un buen equipo vale oro.' }
-            ];
-        } else if (view === 'company_finance') {
-            steps = [
-                { title: '📉 Finanzas', msg: 'Aquí verás el desglose de tus ingresos y gastos. Úsalo para detectar fugas de dinero.' },
-                { title: '💰 Salario CEO', msg: '¡No trabajes gratis! Asígnate un sueldo mensual en el panel de abajo para recibir ingresos personales.' }
-            ];
-        }
-
-        if (steps.length > 0) {
-            GameState.tutorialState[view] = true;
-            PersistenceModule.saveGame();
-            setTimeout(() => UI.runTutorialSequence(steps), 500);
-        }
+        // Disabled in favor of new TutorialSystem
+        return;
     },
 
     startCompanyTutorial() {
-        if (!GameState.tutorialState) GameState.tutorialState = {};
-        if (GameState.tutorialState.company) return;
-
-        const steps = [
-            { title: '🏢 Eres el Jefe', msg: 'Has fundado tu empresa. Ahora tú controlas el Precio, el Marketing y la Calidad.' },
-            { title: '⚙️ Gestión', msg: 'Usa las pestañas <strong>Producto</strong> y <strong>Marketing</strong> para atraer clientes. Si el precio es alto y la calidad baja, no venderás nada.' },
-            { title: '💵 Finanzas', msg: '¡Cuidado con la caja! Si te quedas sin efectivo, quebrarás. Retira beneficios solo cuando la empresa sea estable.' }
-        ];
-
-        GameState.tutorialState.company = true;
-        PersistenceModule.saveGame();
-        UI.runTutorialSequence(steps);
+        // Disabled
+        return;
     },
 
     runTutorialSequence(steps, onComplete) {
-        let currentStep = 0;
-        const showStep = () => {
-            if (currentStep >= steps.length) {
-                if (onComplete) onComplete();
-                return;
-            }
-            const s = steps[currentStep];
-            UI.showModal(s.title, `<p>${s.msg}</p>`, [
-                {
-                    text: currentStep === steps.length - 1 ? 'Entendido' : 'Siguiente',
-                    style: 'primary',
-                    fn: () => {
-                        currentStep++;
-                        setTimeout(showStep, 200);
-                    }
-                }
-            ]);
-        };
-        showStep();
+        // Disabled in favor of new TutorialSystem
+        if (onComplete) onComplete();
     },
 
 
@@ -5361,26 +5490,44 @@ const UI = {
 
                 const costMsg = upfront > 0 ? `\n\n❗ Requiere PAGO INICIAL: ${formatCurrency(upfront)} (${upfrontLabel})` : '';
 
-                UI.confirmModal('Cambiar Estilo de Vida', `¿Cambiar ${LifestyleModule.categories[cat].label} a:\n\n${item.name}\nCoste: ${formatCurrency(item.cost)}/mes?${costMsg}`, () => {
+                const performUpdate = () => {
                     const res = LifestyleModule.setOption(cat, id);
                     if (res.success) {
-                        // Tutorial Completion Logic (Moved here)
-                        if (GameState.tutorialState.forceHousing && id === 'sofa') {
+                        // Tutorial specific logic
+                        const isTutorialSofa = (GameState.tutorialState.forceHousing && id === 'sofa');
+
+                        if (isTutorialSofa) {
                             GameState.tutorialState.forceHousing = false;
                             GameState.expensesUnlocked = true;
-                            UI.showToast('¡Tutorial Completado!', 'Ahora puedes gestionar tus gastos libremente.', 'success');
-                            setTimeout(() => UI.checkContextualTutorial('lifestyle'), 1000);
+                            // NOTE: We SKIP the "Tutorial Completed" toast here because 
+                            // setOption() triggers TutorialSystem.step9_Independence() which shows a modal.
+                            // We also skip valid "Style Updated" toast to avoid clutter.
+                        } else {
+                            if (res.message) UI.showToast('Estilo de Vida Actualizado', res.message, 'success');
                         }
 
                         UI.updateLifestyle(LifestyleModule);
                         UI.updateHeader();
-                        UI.updateDashboard(); // Added missing update
-                        UI.playCoinSound(); // Added missing sound
-                        UI.showToast('Estilo de Vida Actualizado', res.message, 'success'); // Better feedback
+                        UI.updateDashboard();
+                        UI.playCoinSound();
+
+                        // Check contextual only if not in crucial tutorial moment
+                        if (!isTutorialSofa) {
+                            setTimeout(() => UI.checkContextualTutorial('lifestyle'), 1000);
+                        }
                     } else {
                         UI.showToast('Error', res.message, 'error');
                     }
-                });
+                };
+
+                // Skip confirmation for Tutorial Sofa to be smoother
+                if (GameState.tutorialState.forceHousing && id === 'sofa') {
+                    performUpdate();
+                } else {
+                    UI.confirmModal('Cambiar Estilo de Vida', `¿Cambiar ${LifestyleModule.categories[cat].label} a:\n\n${item.name}\nCoste: ${formatCurrency(item.cost)}/mes?${costMsg}`, () => {
+                        performUpdate();
+                    });
+                }
             };
         });
     },
@@ -7673,23 +7820,10 @@ const UI = {
         if (GameState.year === 2 && GameState.month === 4) {
             GameState.cash += 300;
 
-            // Simplified Logic (Matching Y1M4 stability)
-            // No forced housing change to avoid crashes
-
-            UI.showModal('🎂 Felicidades... y Adiós', 'Tu familia te envía <strong>300€</strong> por tu cumpleaños, pero hay un mensaje extra:<br><br><em>"Hijo, ya vas siendo mayor. Cómprate algo bonito, pero espabila y busca curro porque mañana usamos tu habitación para el gimnasio. ¡Te vas de casa!"</em><br><br>📉 <strong>Tutorial de Gastos</strong><br>Debes elegir tu nueva vivienda ahora mismo. Por suerte, tienes un amigo con un sofá libre.<br><br><strong>Misión: Selecciona "Sofá de un amigo" en la pestaña Gastos.</strong>', [
-                {
-                    text: 'Ir a buscar piso', style: 'danger', fn: () => {
-                        GameState.tutorialState.forceHousing = true;
-                        // Switch view manually
-                        document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
-                        document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
-                        document.getElementById('lifestyle-view').classList.add('active');
-                        document.querySelector(`button[data-view="lifestyle"]`).classList.add('active');
-                        UI.updateLifestyle(LifestyleModule);
-                    }
-                }
-            ]);
             UI.playCoinSound();
+
+            // Trigger Tutorial Step 8
+            TutorialSystem.step8_ForceHousing();
         }
     }
 };
