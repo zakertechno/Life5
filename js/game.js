@@ -3108,6 +3108,8 @@ const TutorialSystem = {
 
     // STEP 8: Force Housing (Mom kicks you out)
     step8_ForceHousing() {
+        console.log('DEBUG: step8_ForceHousing Triggered');
+        if (GameState.tutorialState.forceHousing) return;
         GameState.tutorialStep = 8;
         GameState.tutorialState.forceHousing = true;
 
@@ -3165,6 +3167,8 @@ const TutorialSystem = {
                 }
             </style>`;
 
+        document.body.appendChild(overlay);
+
         overlay.querySelector('#tutorial-go-housing-btn').onclick = () => {
             overlay.remove();
 
@@ -3183,6 +3187,14 @@ const TutorialSystem = {
             if (mobileBtn) mobileBtn.classList.add('active');
 
             UI.updateLifestyle(LifestyleModule);
+
+            // BLOCK NAVIGATION
+            document.querySelectorAll('.nav-btn').forEach(btn => {
+                btn.style.pointerEvents = 'none';
+                btn.style.opacity = '0.5';
+            });
+            const activeBtn = document.querySelector(`.nav-btn.active`);
+            if (activeBtn) activeBtn.style.opacity = '1';
 
             // Highlight Housing Section
             setTimeout(() => {
@@ -3227,79 +3239,85 @@ const TutorialSystem = {
         this.removeHighlights();
         this.hideTooltip();
 
+        // UNBLOCK NAVIGATION
+        document.querySelectorAll('.nav-btn').forEach(btn => {
+            btn.style.pointerEvents = 'all';
+            btn.style.opacity = '1';
+        });
+
         // 1. Congratulate Modal
-        showGameAlert(
+        // 1. Congratulate Modal
+        UI.showModal(
+            '🔑 ¡Independencia!',
             '¡Enhorabuena! Te has independizado (aunque sea a un sofá).<br><br>' +
             '🚀 <strong>Nueva Etapa Desbloqueada</strong><br>' +
             'Ahora eres responsable de tus propias finanzas. Vamos a ver cómo van.',
-            'success',
-            '🔑 ¡Independencia!'
+            [{
+                text: '🚀 Ver mis Finanzas',
+                style: 'success',
+                fn: () => {
+                    // Force navigation to Dashboard/Summary
+                    document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+                    document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+                    document.getElementById('dashboard-view').classList.add('active');
+                    document.querySelector(`button[data-view="dashboard"]`).classList.add('active');
+
+                    // Update Dashboard
+                    UI.updateDashboard();
+
+                    // Highlight Sections
+                    this.showOverlay();
+
+                    // Sequence of highlights
+                    setTimeout(() => {
+                        // Highlight Net Worth
+                        const netWorth = document.querySelector('.metric-card.net-worth');
+                        if (netWorth) this.addHighlight('.metric-card.net-worth');
+
+                        this.showTooltip(
+                            '.metric-card.net-worth',
+                            '💰 Patrimonio Neto',
+                            'Tu valor total (Dinero + Activos - Deudas). Obviamente, quieres que esto suba hasta la luna.',
+                            'Siguiente',
+                            () => {
+                                this.removeHighlights();
+                                // Next: Cash Flow
+                                setTimeout(() => {
+                                    const cash = document.querySelector('.metric-card.cash');
+                                    if (cash) this.addHighlight('.metric-card.cash');
+
+                                    this.showTooltip(
+                                        '.metric-card.cash',
+                                        '💵 Caja (Efectivo)',
+                                        'El dinero líquido que tienes para gastar o invertir. ¡Si llega a cero, game over!',
+                                        'Entendido',
+                                        () => {
+                                            this.hideOverlay();
+                                            this.removeHighlights();
+                                            this.hideTooltip();
+
+                                            // Final message
+                                            setTimeout(() => {
+                                                showGameAlert(
+                                                    '🎉 <strong>¡Tutorial Finalizado!</strong><br><br>' +
+                                                    'Ya conoces lo básico. Trabaja, invierte y hazte millonario.<br><br>' +
+                                                    'Suerte en la vida real...',
+                                                    'success',
+                                                    '🎓 Graduado'
+                                                );
+                                                GameState.tutorialFlags.tutorialComplete = true;
+                                                PersistenceModule.saveGame();
+                                            }, 500);
+                                        }
+                                    );
+                                }, 300);
+                            }
+                        );
+                    }, 500);
+
+                }
+            }]
         );
-
-        // 2. Navigate to Summary after modal closes (handled by user action usually, 
-        //    but since showGameAlert is non-blocking, we need a small delay or manual navigation)
-
-        setTimeout(() => {
-            // Force navigation to Dashboard/Summary
-            document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
-            document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
-            document.getElementById('dashboard-view').classList.add('active');
-            document.querySelector(`button[data-view="dashboard"]`).classList.add('active');
-
-            // Update Dashboard
-            UI.updateDashboard();
-
-            // Highlight Sections
-            this.showOverlay();
-
-            // Sequence of highlights
-            setTimeout(() => {
-                // Highlight Net Worth
-                const netWorth = document.querySelector('.metric-card.net-worth');
-                if (netWorth) this.addHighlight('.metric-card.net-worth');
-
-                this.showTooltip(
-                    '.metric-card.net-worth',
-                    '💰 Patrimonio Neto',
-                    'Tu valor total (Dinero + Activos - Deudas). Obviamente, quieres que esto suba hasta la luna.',
-                    'Siguiente',
-                    () => {
-                        this.removeHighlights();
-                        // Next: Cash Flow
-                        setTimeout(() => {
-                            const cash = document.querySelector('.metric-card.cash');
-                            if (cash) this.addHighlight('.metric-card.cash');
-
-                            this.showTooltip(
-                                '.metric-card.cash',
-                                '💵 Caja (Efectivo)',
-                                'El dinero líquido que tienes para gastar o invertir. ¡Si llega a cero, game over!',
-                                'Entendido',
-                                () => {
-                                    this.hideOverlay();
-                                    this.removeHighlights();
-                                    this.hideTooltip();
-
-                                    // Final message
-                                    setTimeout(() => {
-                                        showGameAlert(
-                                            '🎉 <strong>¡Tutorial Finalizado!</strong><br><br>' +
-                                            'Ya conoces lo básico. Trabaja, invierte y hazte millonario.<br><br>' +
-                                            'Suerte en la vida real...',
-                                            'success',
-                                            '🎓 Graduado'
-                                        );
-                                        GameState.tutorialFlags.tutorialComplete = true;
-                                        PersistenceModule.saveGame();
-                                    }, 500);
-                                }
-                            );
-                        }, 300);
-                    }
-                );
-            }, 500);
-
-        }, 2000); // Give time to read the alert
     },
 
     // Check if tutorial should start
@@ -7854,8 +7872,10 @@ const UI = {
             // Notification removed as requested
         }
 
-        // EVENT 2B: Year 2, Month 4 - Kicked out
-        if (GameState.year === 2 && GameState.month === 4) {
+        // EVENT 2B: Year 2, Month 4 - Kicked out (or later if missed)
+        if (!GameState.tutorialState.forceHousing &&
+            ((GameState.year === 2 && GameState.month >= 4) || GameState.year > 2)) {
+
             GameState.cash += 300;
 
             UI.playCoinSound();
