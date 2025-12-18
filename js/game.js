@@ -1746,7 +1746,7 @@ const CompanyModule = {
         if (confirm(`¿Vender ${co.name} por ${formatCurrency(valuation)}? (5x Beneficio Anual)`)) {
             GameState.cash += valuation;
             GameState.ownedCompanies.splice(index, 1);
-            alert(`Has vendido ${co.name}. ${formatCurrency(valuation)} transferidos a tu cuenta personal.`);
+            showGameAlert(`Has vendido ${co.name}. ${formatCurrency(valuation)} transferidos a tu cuenta personal.`, 'success', '🏢 Empresa Vendida');
             UI.updateJob(JobSystem);
         }
     },
@@ -2012,7 +2012,7 @@ const CompanyModule = {
         return { success: true, message: `Inyectados ${formatCurrency(amount)}.` };
     },
 
-    sellCompany() {
+    async sellCompany() {
         if (!GameState.company) return;
         const co = GameState.company;
 
@@ -2034,7 +2034,18 @@ const CompanyModule = {
         const liquidationCash = co.cash;
         const totalExit = valuation + liquidationCash;
 
-        if (!confirm(`OFERTA DE COMPRA\n\nBeneficio Anual: ${formatCurrency(annualProfit)}\nMultiplicador Mejoras: x${upgradeMult}\n\nValoración: ${formatCurrency(valuation)}\nCaja Actual: ${formatCurrency(liquidationCash)}\n\nTOTAL OPERACIÓN: ${formatCurrency(totalExit)}\n\n¿Vender empresa y salir?`)) return;
+        const message = `Beneficio Anual: ${formatCurrency(annualProfit)}
+Multiplicador Mejoras: x${upgradeMult}
+
+Valoración: ${formatCurrency(valuation)}
+Caja Actual: ${formatCurrency(liquidationCash)}
+
+TOTAL OPERACIÓN: ${formatCurrency(totalExit)}
+
+¿Vender empresa y salir?`;
+
+        const confirmed = await showGameConfirm(message, '💰 Oferta de Compra', 'Vender', 'Cancelar');
+        if (!confirmed) return { success: false, message: 'Operación cancelada' };
 
         GameState.cash += totalExit;
         GameState.company = null;
@@ -2524,41 +2535,314 @@ const formatPercent = (val) => (val * 100).toFixed(2) + '%';
  * @param {string} title - Optional title (auto-generated if not provided)
  */
 function showGameAlert(message, type = 'info', title = null) {
-    const icons = {
-        info: '💬',
-        success: '✅',
-        warning: '⚠️',
-        error: '❌'
-    };
-    const colors = {
-        info: '#38bdf8',
-        success: '#4ade80',
-        warning: '#facc15',
-        error: '#f87171'
-    };
-    const titles = {
-        info: 'Información',
-        success: '¡Éxito!',
-        warning: 'Aviso',
-        error: 'Error'
+    const config = {
+        info: {
+            icon: '💬',
+            color: '#38bdf8',
+            bgGradient: 'linear-gradient(145deg, rgba(56, 189, 248, 0.15), rgba(14, 165, 233, 0.05))',
+            borderColor: 'rgba(56, 189, 248, 0.4)',
+            glowColor: 'rgba(56, 189, 248, 0.3)',
+            title: 'Información',
+            btnStyle: 'linear-gradient(135deg, #38bdf8, #0ea5e9)'
+        },
+        success: {
+            icon: '✅',
+            color: '#4ade80',
+            bgGradient: 'linear-gradient(145deg, rgba(74, 222, 128, 0.15), rgba(34, 197, 94, 0.05))',
+            borderColor: 'rgba(74, 222, 128, 0.4)',
+            glowColor: 'rgba(74, 222, 128, 0.3)',
+            title: '¡Éxito!',
+            btnStyle: 'linear-gradient(135deg, #4ade80, #22c55e)'
+        },
+        warning: {
+            icon: '⚠️',
+            color: '#facc15',
+            bgGradient: 'linear-gradient(145deg, rgba(250, 204, 21, 0.15), rgba(234, 179, 8, 0.05))',
+            borderColor: 'rgba(250, 204, 21, 0.4)',
+            glowColor: 'rgba(250, 204, 21, 0.3)',
+            title: 'Aviso',
+            btnStyle: 'linear-gradient(135deg, #facc15, #eab308)'
+        },
+        error: {
+            icon: '❌',
+            color: '#f87171',
+            bgGradient: 'linear-gradient(145deg, rgba(248, 113, 113, 0.15), rgba(239, 68, 68, 0.05))',
+            borderColor: 'rgba(248, 113, 113, 0.4)',
+            glowColor: 'rgba(248, 113, 113, 0.3)',
+            title: 'Error',
+            btnStyle: 'linear-gradient(135deg, #f87171, #ef4444)'
+        }
     };
 
-    const icon = icons[type] || icons.info;
-    const color = colors[type] || colors.info;
-    const displayTitle = title || titles[type] || titles.info;
+    const cfg = config[type] || config.info;
+    const displayTitle = title || cfg.title;
 
-    // Use the existing UI.showModal if available
-    if (typeof UI !== 'undefined' && UI.showModal) {
-        UI.showModal(
-            `${icon} ${displayTitle}`,
-            message.replace(/\n/g, '<br>'),
-            [{ text: 'Entendido', style: type === 'error' ? 'danger' : 'primary', fn: null }],
-            true
-        );
-    } else {
-        // Fallback to native alert if UI not loaded yet
-        alert(message);
-    }
+    // Remove existing alert modal if any
+    const existing = document.querySelector('.game-alert-overlay');
+    if (existing) existing.remove();
+
+    // Create premium modal
+    const overlay = document.createElement('div');
+    overlay.className = 'game-alert-overlay';
+    overlay.style.cssText = `
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0, 0, 0, 0.7);
+        backdrop-filter: blur(4px);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 10000;
+        animation: fadeIn 0.2s ease-out;
+    `;
+
+    const modal = document.createElement('div');
+    modal.style.cssText = `
+        background: linear-gradient(145deg, #1e293b, #0f172a);
+        border: 1px solid ${cfg.borderColor};
+        border-radius: 20px;
+        padding: 30px;
+        max-width: 380px;
+        width: 90%;
+        text-align: center;
+        box-shadow: 0 25px 50px rgba(0, 0, 0, 0.5), 0 0 40px ${cfg.glowColor};
+        animation: scaleIn 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+    `;
+
+    modal.innerHTML = `
+        <style>
+            @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+            @keyframes scaleIn { from { transform: scale(0.8); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+            @keyframes iconPulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.1); } }
+            @keyframes iconShake { 0%, 100% { transform: rotate(0deg); } 25% { transform: rotate(-5deg); } 75% { transform: rotate(5deg); } }
+        </style>
+        <div style="
+            font-size: 3.5rem;
+            margin-bottom: 15px;
+            filter: drop-shadow(0 0 20px ${cfg.glowColor});
+            animation: ${type === 'error' ? 'iconShake' : 'iconPulse'} 0.6s ease-out;
+        ">${cfg.icon}</div>
+        <h2 style="
+            color: ${cfg.color};
+            margin: 0 0 15px 0;
+            font-size: 1.4rem;
+            font-weight: 800;
+            text-shadow: 0 0 20px ${cfg.glowColor};
+        ">${displayTitle}</h2>
+        <div style="
+            background: ${cfg.bgGradient};
+            border: 1px solid ${cfg.borderColor};
+            border-radius: 12px;
+            padding: 15px 20px;
+            margin-bottom: 20px;
+        ">
+            <p style="
+                color: #e2e8f0;
+                margin: 0;
+                font-size: 0.95rem;
+                line-height: 1.6;
+            ">${message.replace(/\n/g, '<br>')}</p>
+        </div>
+        <button class="game-alert-btn" style="
+            background: ${cfg.btnStyle};
+            border: none;
+            color: ${type === 'warning' ? '#0f172a' : 'white'};
+            padding: 14px 40px;
+            border-radius: 12px;
+            font-size: 1rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.2s;
+            box-shadow: 0 4px 15px ${cfg.glowColor};
+        ">Entendido</button>
+    `;
+
+    overlay.appendChild(modal);
+    document.body.appendChild(overlay);
+
+    // Button handlers
+    const btn = modal.querySelector('.game-alert-btn');
+    btn.onmouseenter = () => btn.style.transform = 'translateY(-2px)';
+    btn.onmouseleave = () => btn.style.transform = 'translateY(0)';
+    btn.onclick = () => {
+        overlay.style.animation = 'fadeIn 0.15s ease-out reverse';
+        setTimeout(() => overlay.remove(), 150);
+    };
+
+    // Close on overlay click
+    overlay.onclick = (e) => {
+        if (e.target === overlay) {
+            overlay.style.animation = 'fadeIn 0.15s ease-out reverse';
+            setTimeout(() => overlay.remove(), 150);
+        }
+    };
+
+    // Close on Escape key
+    const escHandler = (e) => {
+        if (e.key === 'Escape') {
+            overlay.remove();
+            document.removeEventListener('keydown', escHandler);
+        }
+    };
+    document.addEventListener('keydown', escHandler);
+}
+
+/**
+ * Styled replacement for native confirm(). Shows a premium modal with Yes/No buttons.
+ * Returns a Promise that resolves to true (confirmed) or false (cancelled).
+ * @param {string} message - Message to display (supports HTML and \n for line breaks)
+ * @param {string} title - Optional title
+ * @param {string} confirmText - Text for confirm button (default: 'Confirmar')
+ * @param {string} cancelText - Text for cancel button (default: 'Cancelar')
+ * @returns {Promise<boolean>}
+ */
+function showGameConfirm(message, title = '¿Confirmar?', confirmText = 'Confirmar', cancelText = 'Cancelar') {
+    return new Promise((resolve) => {
+        // Remove existing confirm modal if any
+        const existing = document.querySelector('.game-confirm-overlay');
+        if (existing) existing.remove();
+
+        // Create premium modal
+        const overlay = document.createElement('div');
+        overlay.className = 'game-confirm-overlay';
+        overlay.style.cssText = `
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.75);
+            backdrop-filter: blur(5px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 10000;
+            animation: fadeIn 0.2s ease-out;
+        `;
+
+        const modal = document.createElement('div');
+        modal.style.cssText = `
+            background: linear-gradient(145deg, #1e293b, #0f172a);
+            border: 1px solid rgba(56, 189, 248, 0.3);
+            border-radius: 20px;
+            padding: 30px;
+            max-width: 420px;
+            width: 90%;
+            text-align: center;
+            box-shadow: 0 25px 50px rgba(0, 0, 0, 0.5), 0 0 40px rgba(56, 189, 248, 0.15);
+            animation: scaleIn 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+        `;
+
+        // Format message with proper styling for sections
+        let formattedMessage = message
+            .replace(/\n\n/g, '</p><div style="height:12px;"></div><p style="color:#e2e8f0;margin:0;font-size:0.95rem;line-height:1.6;">')
+            .replace(/\n/g, '<br>');
+
+        // Style currency values and important text
+        formattedMessage = formattedMessage
+            .replace(/([\d.,]+\s*€)/g, '<span style="color:#4ade80;font-weight:700;">$1</span>')
+            .replace(/(x\d+)/g, '<span style="color:#4ade80;font-weight:700;">$1</span>')
+            .replace(/(TOTAL OPERACIÓN:)/g, '<span style="color:#38bdf8;font-weight:800;font-size:1.1rem;">$1</span>')
+            .replace(/(OFERTA DE COMPRA)/g, '')
+            .replace(/(Valoración:|Caja Actual:|Beneficio Anual:|Multiplicador Mejoras:)/g, '<span style="color:#94a3b8;">$1</span>');
+
+        modal.innerHTML = `
+            <style>
+                @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+                @keyframes scaleIn { from { transform: scale(0.8); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+            </style>
+            <div style="
+                font-size: 3rem;
+                margin-bottom: 15px;
+                filter: drop-shadow(0 0 15px rgba(250, 204, 21, 0.4));
+            ">🤔</div>
+            <h2 style="
+                color: #facc15;
+                margin: 0 0 20px 0;
+                font-size: 1.3rem;
+                font-weight: 800;
+                text-shadow: 0 0 15px rgba(250, 204, 21, 0.3);
+            ">${title}</h2>
+            <div style="
+                background: linear-gradient(145deg, rgba(30, 41, 59, 0.8), rgba(15, 23, 42, 0.5));
+                border: 1px solid rgba(148, 163, 184, 0.2);
+                border-radius: 12px;
+                padding: 20px;
+                margin-bottom: 25px;
+                text-align: left;
+            ">
+                <p style="color:#e2e8f0;margin:0;font-size:0.95rem;line-height:1.6;">${formattedMessage}</p>
+            </div>
+            <div style="display:flex;gap:12px;justify-content:center;">
+                <button class="game-confirm-cancel" style="
+                    background: linear-gradient(145deg, #334155, #1e293b);
+                    border: 1px solid #475569;
+                    color: #e2e8f0;
+                    padding: 14px 30px;
+                    border-radius: 12px;
+                    font-size: 1rem;
+                    font-weight: 600;
+                    cursor: pointer;
+                    transition: all 0.2s;
+                    flex: 1;
+                ">${cancelText}</button>
+                <button class="game-confirm-ok" style="
+                    background: linear-gradient(135deg, #4ade80, #22c55e);
+                    border: none;
+                    color: #0f172a;
+                    padding: 14px 30px;
+                    border-radius: 12px;
+                    font-size: 1rem;
+                    font-weight: 700;
+                    cursor: pointer;
+                    transition: all 0.2s;
+                    box-shadow: 0 4px 15px rgba(74, 222, 128, 0.3);
+                    flex: 1;
+                ">${confirmText}</button>
+            </div>
+        `;
+
+        overlay.appendChild(modal);
+        document.body.appendChild(overlay);
+
+        // Button handlers with hover effects
+        const okBtn = modal.querySelector('.game-confirm-ok');
+        const cancelBtn = modal.querySelector('.game-confirm-cancel');
+
+        okBtn.onmouseenter = () => { okBtn.style.transform = 'translateY(-2px)'; okBtn.style.boxShadow = '0 6px 20px rgba(74, 222, 128, 0.4)'; };
+        okBtn.onmouseleave = () => { okBtn.style.transform = 'translateY(0)'; okBtn.style.boxShadow = '0 4px 15px rgba(74, 222, 128, 0.3)'; };
+
+        cancelBtn.onmouseenter = () => { cancelBtn.style.background = 'linear-gradient(145deg, #475569, #334155)'; };
+        cancelBtn.onmouseleave = () => { cancelBtn.style.background = 'linear-gradient(145deg, #334155, #1e293b)'; };
+
+        const closeModal = (result) => {
+            overlay.style.animation = 'fadeIn 0.15s ease-out reverse';
+            setTimeout(() => {
+                overlay.remove();
+                resolve(result);
+            }, 150);
+        };
+
+        okBtn.onclick = () => closeModal(true);
+        cancelBtn.onclick = () => closeModal(false);
+
+        // Close on overlay click (cancels)
+        overlay.onclick = (e) => {
+            if (e.target === overlay) closeModal(false);
+        };
+
+        // Escape key cancels
+        const escHandler = (e) => {
+            if (e.key === 'Escape') {
+                closeModal(false);
+                document.removeEventListener('keydown', escHandler);
+            }
+        };
+        document.addEventListener('keydown', escHandler);
+    });
 }
 
 const UI = {
@@ -4757,7 +5041,7 @@ const UI = {
                         UI.updateHeader();
                         UI.updateDashboard();
                     } else {
-                        alert(res.message);
+                        showGameAlert(res.message, res.success ? 'success' : 'error');
                     }
                 }
             }
@@ -4853,7 +5137,7 @@ const UI = {
                         a.fn();
                     } catch (e) {
                         console.error("Modal Action Error:", e);
-                        alert("Error executing action: " + e.message);
+                        showGameAlert('Error ejecutando acción: ' + e.message, 'error');
                     }
                 }
                 overlay.remove();
@@ -5004,7 +5288,7 @@ const UI = {
                             if (res && res.success) {
                                 UI.updateJob(JobSys);
                                 UI.updateDashboard();
-                                alert(res.message);
+                                showGameAlert(res.message, res.success ? 'success' : 'error');
                             }
                         });
                     };
@@ -5149,7 +5433,7 @@ const UI = {
                             goalCard.querySelector('#btn-raise-tres').onclick = () => {
                                 const res = JobSys.promote();
                                 if (!res.success) {
-                                    alert(res.message);
+                                    showGameAlert(res.message, res.success ? 'success' : 'error');
                                 }
                                 UI.updateJob(JobSys);
                             };
@@ -5209,7 +5493,7 @@ const UI = {
                                     UI.updateHeader();
                                     UI.updateDashboard();
                                 } else {
-                                    alert(res.message);
+                                    showGameAlert(res.message, res.success ? 'success' : 'error');
                                 }
                             };
                         }
@@ -5252,7 +5536,7 @@ const UI = {
                         if (canAsk) {
                             promoteBtn.onclick = () => {
                                 const res = JobSys.promote();
-                                alert(res.message);
+                                showGameAlert(res.message, res.success ? 'success' : 'error');
                                 UI.updateJob(JobSys);
                             };
                         }
@@ -5347,7 +5631,7 @@ const UI = {
                             UI.updateHeader();
                             UI.updateDashboard();
                         } else {
-                            alert(res.message);
+                            showGameAlert(res.message, res.success ? 'success' : 'error');
                         }
                     };
                     gigGrid.appendChild(card);
@@ -5683,7 +5967,7 @@ const UI = {
                 };
                 window.investCo = (type) => {
                     const r = CompanyModule.invest(type);
-                    if (r) { if (r.message) alert(r.message); UI.updateJob(JobSystem); }
+                    if (r) { if (r.message) showGameAlert(r.message, r.success ? 'success' : 'error'); UI.updateJob(JobSystem); }
                 };
                 window.updatePrice = () => {
                     const el = document.getElementById('price-input');
@@ -5691,7 +5975,7 @@ const UI = {
                     const val = parseFloat(el.value);
                     if (val > 0) {
                         GameState.company.customPrice = val;
-                        alert(`Precio fijado en ${formatCurrency(val)}. La exigencia de calidad cambiará.`);
+                        showGameAlert(`Precio fijado en ${formatCurrency(val)}. La exigencia de calidad cambiará.`, 'success', '💰 Precio Actualizado');
                         UI.updateJob(JobSystem);
                     }
                 };
@@ -6053,7 +6337,7 @@ const UI = {
 
                     document.getElementById('btn-upgrade-office').onclick = () => {
                         const r = CompanyModule.upgradeOffice();
-                        if (r) { alert(r.message); UI.updateJob(JobSystem); }
+                        if (r) { showGameAlert(r.message, r.success ? 'success' : 'error'); UI.updateJob(JobSystem); }
                     };
 
                     window.hireRole = (role, sal) => {
@@ -6795,30 +7079,30 @@ const UI = {
 
                     document.getElementById('btn-withdraw').onclick = () => {
                         const val = parseInt(document.getElementById('co-trans-amount').value);
-                        if (!val || val <= 0) return alert('Introduce cantidad válida');
+                        if (!val || val <= 0) return showGameAlert('Introduce cantidad válida', 'warning');
                         let r = CompanyModule.withdraw(val);
-                        if (r) alert(r.message);
+                        if (r) showGameAlert(r.message, r.success ? 'success' : 'error');
                         UI.updateJob(JobSystem);
                         UI.updateHeader();
                     };
                     document.getElementById('btn-deposit').onclick = () => {
                         const val = parseInt(document.getElementById('co-dep-amount').value);
-                        if (!val || val <= 0) return alert('Introduce cantidad válida');
+                        if (!val || val <= 0) return showGameAlert('Introduce cantidad válida', 'warning');
                         let r = CompanyModule.deposit(val);
-                        if (r) alert(r.message);
+                        if (r) showGameAlert(r.message, r.success ? 'success' : 'error');
                         UI.updateJob(JobSystem);
                         UI.updateHeader();
                     };
                     document.getElementById('btn-set-salary').onclick = () => {
                         const val = parseInt(document.getElementById('co-ceo-salary').value) || 0;
                         co.ceoSalary = val;
-                        alert(`Salario de CEO actualizado a ${formatCurrency(val)} `);
+                        showGameAlert(`Salario de CEO actualizado a ${formatCurrency(val)}`, 'success', '💼 Salario Actualizado');
                         UI.updateJob(JobSystem);
                     };
-                    window.sellCompanyAction = () => {
-                        const r = CompanyModule.sellCompany();
+                    window.sellCompanyAction = async () => {
+                        const r = await CompanyModule.sellCompany();
                         if (r && r.success) {
-                            alert(r.message);
+                            showGameAlert(r.message, 'success');
                             UI.updateHeader();
                             UI.updateJob(JobSystem);
                             UI.updateDashboard();
@@ -6828,7 +7112,7 @@ const UI = {
             }
         } catch (e) {
             console.error("UI Error:", e);
-            alert("UI Error: " + e.message);
+            console.error('UI Error:', e.message);
         }
     },
 
@@ -7024,23 +7308,57 @@ function nextTurn() {
             GameState.lifetimeStats.totalTaxesPaid += taxAmount;
 
             const breakdown = `
-                        <div style="text-align: left; margin: 10px 0;">
-                            <h4 style="margin-bottom: 10px; color: #38bdf8; font-size: 1rem;">Ingresos Año ${GameState.year - 1}:</h4>
-                            <div style="margin-bottom: 5px; font-size: 0.9rem;">💼 Salarios: <strong>${formatCurrency(GameState.previousYearIncome.salary)}</strong></div>
-                            <div style="margin-bottom: 5px; font-size: 0.9rem;">🏠 Alquileres: <strong>${formatCurrency(GameState.previousYearIncome.rental)}</strong></div>
-                            <div style="margin-bottom: 5px; font-size: 0.9rem;">📈 Bolsa: <strong>${formatCurrency(GameState.previousYearIncome.stocks)}</strong></div>
-                            <div style="margin-bottom: 5px; font-size: 0.9rem;">🏢 Empresa: <strong>${formatCurrency(GameState.previousYearIncome.company)}</strong></div>
-                            <hr style="margin: 10px 0; border-color: #334155;">
-                            <div style="font-size: 1rem; margin-bottom: 5px;">Total: <strong style="color: #4ade80;">${formatCurrency(totalIncome)}</strong></div>
-                            <div style="font-size: 0.85rem; margin-bottom: 5px; color: #94a3b8;">Tramo: ${(taxRate * 100).toFixed(0)}%</div>
-                            <div style="font-size: 1.1rem; margin-top: 8px; color: #f87171;">Impuestos: <strong>${formatCurrency(taxAmount)}</strong></div>
+                <div style="text-align: center; margin-bottom: 20px;">
+                    <div style="font-size: 3rem; margin-bottom: 10px; filter: drop-shadow(0 0 15px rgba(248, 113, 113, 0.4));">📋</div>
+                    <div style="font-size: 0.85rem; color: #94a3b8; text-transform: uppercase; letter-spacing: 2px;">Declaración de la Renta</div>
+                </div>
+                
+                <div style="background: linear-gradient(145deg, rgba(30, 41, 59, 0.8), rgba(15, 23, 42, 0.5)); border: 1px solid rgba(56, 189, 248, 0.2); border-radius: 16px; padding: 20px; margin-bottom: 20px;">
+                    <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 15px;">
+                        <span style="font-size: 1.3rem;">📊</span>
+                        <span style="color: #38bdf8; font-weight: 700; font-size: 1rem;">Ingresos Año ${GameState.year - 1}</span>
+                    </div>
+                    
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                        <div style="background: rgba(15, 23, 42, 0.5); border-radius: 10px; padding: 12px; text-align: center;">
+                            <div style="font-size: 1.5rem; margin-bottom: 5px;">💼</div>
+                            <div style="font-size: 0.75rem; color: #94a3b8; margin-bottom: 3px;">Salarios</div>
+                            <div style="font-size: 1rem; color: #4ade80; font-weight: 700;">${formatCurrency(GameState.previousYearIncome.salary)}</div>
                         </div>
-                    `;
+                        <div style="background: rgba(15, 23, 42, 0.5); border-radius: 10px; padding: 12px; text-align: center;">
+                            <div style="font-size: 1.5rem; margin-bottom: 5px;">🏠</div>
+                            <div style="font-size: 0.75rem; color: #94a3b8; margin-bottom: 3px;">Alquileres</div>
+                            <div style="font-size: 1rem; color: #4ade80; font-weight: 700;">${formatCurrency(GameState.previousYearIncome.rental)}</div>
+                        </div>
+                        <div style="background: rgba(15, 23, 42, 0.5); border-radius: 10px; padding: 12px; text-align: center;">
+                            <div style="font-size: 1.5rem; margin-bottom: 5px;">📈</div>
+                            <div style="font-size: 0.75rem; color: #94a3b8; margin-bottom: 3px;">Bolsa</div>
+                            <div style="font-size: 1rem; color: #4ade80; font-weight: 700;">${formatCurrency(GameState.previousYearIncome.stocks)}</div>
+                        </div>
+                        <div style="background: rgba(15, 23, 42, 0.5); border-radius: 10px; padding: 12px; text-align: center;">
+                            <div style="font-size: 1.5rem; margin-bottom: 5px;">🏢</div>
+                            <div style="font-size: 0.75rem; color: #94a3b8; margin-bottom: 3px;">Empresa</div>
+                            <div style="font-size: 1rem; color: #4ade80; font-weight: 700;">${formatCurrency(GameState.previousYearIncome.company)}</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div style="background: linear-gradient(145deg, rgba(74, 222, 128, 0.1), rgba(34, 197, 94, 0.05)); border: 1px solid rgba(74, 222, 128, 0.3); border-radius: 12px; padding: 15px; margin-bottom: 15px; text-align: center;">
+                    <div style="font-size: 0.8rem; color: #94a3b8; margin-bottom: 5px;">Base Imponible</div>
+                    <div style="font-size: 1.5rem; color: #4ade80; font-weight: 800; text-shadow: 0 0 15px rgba(74, 222, 128, 0.3);">${formatCurrency(totalIncome)}</div>
+                    <div style="font-size: 0.75rem; color: #94a3b8; margin-top: 5px;">Tramo: <span style="color: #facc15; font-weight: 600;">${(taxRate * 100).toFixed(0)}%</span></div>
+                </div>
+                
+                <div style="background: linear-gradient(145deg, rgba(248, 113, 113, 0.15), rgba(239, 68, 68, 0.05)); border: 1px solid rgba(248, 113, 113, 0.4); border-radius: 12px; padding: 15px; text-align: center;">
+                    <div style="font-size: 0.8rem; color: #f87171; margin-bottom: 5px; text-transform: uppercase; letter-spacing: 1px;">A Pagar</div>
+                    <div style="font-size: 1.8rem; color: #f87171; font-weight: 800; text-shadow: 0 0 20px rgba(248, 113, 113, 0.4);">${formatCurrency(taxAmount)}</div>
+                </div>
+            `;
 
             UI.showModal(
-                'Renta Año ' + (GameState.year - 1),
+                '📋 Renta Año ' + (GameState.year - 1),
                 breakdown,
-                [{ text: 'Pagar 💸', style: 'danger', fn: null }]
+                [{ text: '💸 Pagar Impuestos', style: 'danger', fn: null }]
             );
         }
     }
@@ -7196,7 +7514,7 @@ try {
         const btnPromote = document.getElementById('btn-promote');
         if (btnPromote) btnPromote.onclick = () => {
             const res = JobSystem.promote();
-            alert(res.message);
+            showGameAlert(res.message, res.success ? 'success' : 'error');
             if (res.success) {
                 UI.updateJob(JobSystem);
                 UI.updateHeader();
