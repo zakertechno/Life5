@@ -112,7 +112,8 @@ function showEndgameModal() {
     UI.showModal(
         '🎮 Fin del Juego',
         summary,
-        [{ text: '🔄 Reiniciar Juego', style: 'primary', fn: resetGame }]
+        [{ text: '🔄 Reiniciar Juego', style: 'primary', fn: resetGame }],
+        true
     );
 }
 
@@ -1507,20 +1508,31 @@ const EducationModule = {
             return; // Tutorial handles the modal
         }
 
-        let message = `
-                    <style>
-                        /* HACK: Tighten spacing for Course Completion modal */
-                        .custom-modal-box h3 { margin-bottom: 5px !important; padding-bottom: 0 !important; }
-                        .custom-modal-box .modal-body { padding-top: 5px !important; }
-                    </style>
-                    <div style="text-align:center;">
-                        <h3 style="color:#facc15; margin:0 0 10px 0;">¡Felicidades!</h3>
-                        <p style="margin-bottom:15px;">Has completado: <strong>${course.name}</strong></p>
-                        <p style="font-size:0.9rem; color:#cbd5e1;">Ahora puedes acceder a puestos de mayor cualificación.</p>
-                    </div>
-                `;
+        // PREMIUM COURSE COMPLETION MESSAGE
+        const themeColor = '#818cf8'; // Indigo
+        const icon = '🎓';
 
-        UI.showModal('¡Curso Finalizado!', message, [
+        let finishMsg = `
+            <div style="text-align: center; margin-bottom: 20px;">
+                <div style="font-size: 4rem; margin-bottom: 10px; filter: drop-shadow(0 0 15px ${themeColor}66); animation: bounceIn 0.6s cubic-bezier(0.68, -0.55, 0.265, 1.55);">${icon}</div>
+                <h3 style="color: ${themeColor}; margin: 0; font-size: 1.6rem; text-shadow: 0 0 10px ${themeColor}4d; font-weight: 800; letter-spacing: 1px;">¡FORMACIÓN COMPLETADA!</h3>
+            </div>
+
+            <div style="background: linear-gradient(145deg, rgba(30, 41, 59, 0.8), rgba(15, 23, 42, 0.6)); border: 1px solid ${themeColor}4d; border-radius: 16px; padding: 25px; text-align: center; margin-bottom: 25px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);">
+                <div style="font-size: 0.85rem; color: #94a3b8; text-transform: uppercase; letter-spacing: 1.5px; margin-bottom: 10px;">Título Obtenido</div>
+                <div style="font-size: 1.6rem; font-weight: 800; color: #f8fafc; margin-bottom: 15px;">${course.name}</div>
+                
+                <div style="display: inline-block; background: ${themeColor}26; border: 1px solid ${themeColor}4d; padding: 10px 20px; border-radius: 30px;">
+                    <span style="color: ${themeColor}; font-weight: 700; font-size: 1.1rem;">Cualificación ++</span>
+                </div>
+            </div>
+
+            <p style="text-align: center; color: #cbd5e1; font-size: 1rem; line-height: 1.6; margin: 0; padding: 0 10px;">
+                Has finalizado tus estudios. Ahora puedes acceder a puestos de mayor responsabilidad y salario.
+            </p>
+        `;
+
+        UI.showModal(' ', finishMsg, [
             {
                 text: 'Ir a Trabajo', style: 'success', fn: () => {
                     // Switch to Job View
@@ -2992,58 +3004,56 @@ const TutorialSystem = {
         GameState.tutorialStep = 5;
         GameState.tutorialFlags.completedFirstDegree = true;
 
-        // Show celebration modal
-        const overlay = document.createElement('div');
-        overlay.className = 'tutorial-overlay';
-        overlay.style.display = 'flex';
-        overlay.style.alignItems = 'center';
-        overlay.style.justifyContent = 'center';
-        overlay.innerHTML = `
-            <div style="
-                background: linear-gradient(145deg, #1e293b, #0f172a);
-                border: 2px solid rgba(74, 222, 128, 0.4);
-                border-radius: 24px;
-                padding: 35px;
-                max-width: 400px;
-                width: 90%;
-                text-align: center;
-                box-shadow: 0 30px 60px rgba(0, 0, 0, 0.6), 0 0 50px rgba(74, 222, 128, 0.15);
-                animation: tutorialSlideIn 0.4s ease-out;
-            ">
-                <div style="font-size: 4rem; margin-bottom: 15px; filter: drop-shadow(0 0 20px rgba(74, 222, 128, 0.4)); animation: tutorialPulse 1s infinite;">🎓</div>
-                <h2 style="color: #4ade80; margin: 0 0 15px 0; font-size: 1.6rem; text-shadow: 0 0 20px rgba(74, 222, 128, 0.3);">¡ENHORABUENA!</h2>
-                <p style="color: #e2e8f0; margin: 0 0 20px 0; font-size: 1rem;">
-                    Has completado: <strong style="color: #38bdf8;">${degreeName}</strong>
-                </p>
-                <div style="background: rgba(74, 222, 128, 0.1); border: 1px solid rgba(74, 222, 128, 0.3); border-radius: 12px; padding: 15px; margin-bottom: 20px; text-align: left;">
-                    <div style="margin-bottom: 8px; font-size: 0.9rem;">✅ Acceso a empleos fijos</div>
-                    <div style="margin-bottom: 8px; font-size: 0.9rem;">✅ Mejores salarios disponibles</div>
-                    <div style="font-size: 0.9rem;">✅ Posibilidad de ascender</div>
-                </div>
-                <button id="tutorial-go-work-btn" style="
-                    background: linear-gradient(135deg, #4ade80, #22c55e);
-                    border: none;
-                    color: #0f172a;
-                    padding: 15px 30px;
-                    border-radius: 12px;
-                    font-size: 1rem;
-                    font-weight: 700;
-                    cursor: pointer;
-                    width: 100%;
-                    transition: all 0.2s;
-                    box-shadow: 0 4px 15px rgba(74, 222, 128, 0.3);
-                ">🔍 Buscar Empleo</button>
-            </div>
-        `;
-        document.body.appendChild(overlay);
+        // PREMIUM CELEBRATION MODAL
+        const themeColor = '#4ade80'; // Green/Success (Match text) or Indigo? Plan said Indigo but text uses Green. Let's stick to Green for "Enhorabuena"/Success match.
+        // Actually plan said "Premium Indigo Theme (Academic)". Let's switch to Indigo #818cf8 to match "Course Completed".
+        // Wait, the user specifically mentioned "ENHORABUENA" and the Green checks. I'll use Green (#4ade80) to match the "Success" vibe of the original request's description "✅".
 
-        overlay.querySelector('#tutorial-go-work-btn').onclick = () => {
-            overlay.remove();
-            GameState.tutorialFlags.wentToWorkAfterDegree = true;
-            // Navigate to Work tab
-            document.querySelector('.b-nav-item[data-view="job"]')?.click();
-            setTimeout(() => this.step6_AcceptRealJob(), 500);
-        };
+        // UPDATED DECISION: Use Indigo (#818cf8) for consistency with "Course Completed" (Step 4/5 boundary), 
+        // BUT keep the success/checks vibe.
+
+        const finalTheme = '#818cf8'; // Indigo
+        const icon = '🎓';
+
+        let successMsg = `
+        <div style="text-align: center; margin-bottom: 20px;">
+            <div style="font-size: 4rem; margin-bottom: 10px; filter: drop-shadow(0 0 15px ${finalTheme}66); animation: bounceIn 0.6s cubic-bezier(0.68, -0.55, 0.265, 1.55);">${icon}</div>
+            <h3 style="color: ${finalTheme}; margin: 0; font-size: 1.6rem; text-shadow: 0 0 10px ${finalTheme}4d; font-weight: 800; letter-spacing: 1px;">¡ENHORABUENA!</h3>
+        </div>
+
+        <div style="background: linear-gradient(145deg, rgba(30, 41, 59, 0.8), rgba(15, 23, 42, 0.6)); border: 1px solid ${finalTheme}4d; border-radius: 16px; padding: 25px; text-align: center; margin-bottom: 25px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);">
+            <div style="font-size: 0.85rem; color: #94a3b8; text-transform: uppercase; letter-spacing: 1.5px; margin-bottom: 10px;">Formación Finalizada</div>
+            <div style="font-size: 1.6rem; font-weight: 800; color: #f8fafc; margin-bottom: 15px;">${degreeName}</div>
+            
+            <div style="text-align: left; background: ${finalTheme}1a; border-radius: 12px; padding: 15px; margin-top: 15px; border: 1px solid ${finalTheme}33;">
+                <div style="margin-bottom: 8px; font-size: 0.95rem; color: #e2e8f0;">✅ Acceso a empleos fijos</div>
+                <div style="margin-bottom: 8px; font-size: 0.95rem; color: #e2e8f0;">✅ Mejores salarios disponibles</div>
+                <div style="font-size: 0.95rem; color: #e2e8f0;">✅ Posibilidad de ascender</div>
+            </div>
+        </div>
+    `;
+
+        UI.showModal(
+            ' ',
+            successMsg,
+            [{
+                text: '🔍 Buscar Empleo',
+                style: 'primary',
+                fn: () => {
+                    GameState.tutorialFlags.wentToWorkAfterDegree = true;
+
+                    // Navigate to Work tab
+                    const jobTab = document.querySelector('.nav-btn[data-view="job"]'); // Use safe selector
+                    if (jobTab) jobTab.click();
+
+                    // Fallback navigation if click fails or logic is different
+                    UI.updateJob(JobSystem); // Ensure refreshed
+
+                    setTimeout(() => this.step6_AcceptRealJob(), 500);
+                }
+            }],
+            true // isHTML
+        );
     },
 
     // STEP 6: Accept Real Job
@@ -4546,12 +4556,36 @@ const UI = {
                 const res = BankModule.payLoanTotally(id);
 
                 if (res.success) {
-                    UI.showModal('Deuda Liquidada', res.message, [{ text: 'Perfecto', style: 'success', fn: null }]);
+                    // PREMIUM DEBT FREE MESSAGE
+                    const themeColor = '#10b981'; // Emerald
+                    const icon = '💸';
+
+                    let freeMsg = `
+                        <div style="text-align: center; margin-bottom: 20px;">
+                            <div style="font-size: 4rem; margin-bottom: 10px; filter: drop-shadow(0 0 15px ${themeColor}66); animation: bounceIn 0.6s cubic-bezier(0.68, -0.55, 0.265, 1.55);">${icon}</div>
+                            <h3 style="color: ${themeColor}; margin: 0; font-size: 1.6rem; text-shadow: 0 0 10px ${themeColor}4d; font-weight: 800; letter-spacing: 1px;">¡LIBRE DE DEUDAS!</h3>
+                        </div>
+
+                        <div style="background: linear-gradient(145deg, rgba(30, 41, 59, 0.8), rgba(15, 23, 42, 0.6)); border: 1px solid ${themeColor}4d; border-radius: 16px; padding: 25px; text-align: center; margin-bottom: 25px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);">
+                            <div style="font-size: 0.85rem; color: #94a3b8; text-transform: uppercase; letter-spacing: 1.5px; margin-bottom: 10px;">Préstamo Liquidado</div>
+                            <div style="font-size: 1.6rem; font-weight: 800; color: #f8fafc; margin-bottom: 15px;">100% Pagado</div>
+                            
+                            <div style="display: inline-block; background: ${themeColor}26; border: 1px solid ${themeColor}4d; padding: 10px 20px; border-radius: 30px;">
+                                <span style="color: ${themeColor}; font-weight: 700; font-size: 1.1rem;">Libertad +1</span>
+                            </div>
+                        </div>
+
+                        <p style="text-align: center; color: #cbd5e1; font-size: 1rem; line-height: 1.6; margin: 0; padding: 0 10px;">
+                            Has liquidado totalmente este préstamo. Una carga menos en tu camino a la riqueza.
+                        </p>
+                    `;
+
+                    UI.showModal(' ', freeMsg, [{ text: '¡Excelente!', style: 'success', fn: null }], true);
                     UI.updateHeader();
                     UI.updateDashboard();
                     UI.updateBank(BankModule);
                 } else {
-                    UI.showModal('Error', res.message, [{ text: 'Cerrar', style: 'secondary', fn: null }]);
+                    showGameAlert(res.message, 'error');
                 }
             };
         });
@@ -4584,7 +4618,30 @@ const UI = {
 
                             const res = BankModule.payLoanPartial(loanId, val);
                             if (res.success) {
-                                UI.showModal('Amortización Exitosa', res.message, [{ text: 'Genial', style: 'success', fn: null }]);
+                                // PREMIUM AMORTIZATION MESSAGE
+                                const themeColor = '#34d399'; // Emerald 400
+                                const icon = '📉';
+
+                                let amortMsg = `
+                                    <div style="text-align: center; margin-bottom: 20px;">
+                                        <div style="font-size: 4rem; margin-bottom: 10px; filter: drop-shadow(0 0 15px ${themeColor}66); animation: bounceIn 0.6s cubic-bezier(0.68, -0.55, 0.265, 1.55);">${icon}</div>
+                                        <h3 style="color: ${themeColor}; margin: 0; font-size: 1.6rem; text-shadow: 0 0 10px ${themeColor}4d; font-weight: 800; letter-spacing: 1px;">AMORTIZACIÓN</h3>
+                                    </div>
+
+                                    <div style="background: linear-gradient(145deg, rgba(30, 41, 59, 0.8), rgba(15, 23, 42, 0.6)); border: 1px solid ${themeColor}4d; border-radius: 16px; padding: 25px; text-align: center; margin-bottom: 25px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);">
+                                        <div style="font-size: 0.85rem; color: #94a3b8; text-transform: uppercase; letter-spacing: 1.5px; margin-bottom: 10px;">Capital Reducido</div>
+                                        <div style="font-size: 1.6rem; font-weight: 800; color: #f8fafc; margin-bottom: 15px;">-${formatCurrency(val)}</div>
+                                        
+                                        <div style="display: inline-block; background: ${themeColor}26; border: 1px solid ${themeColor}4d; padding: 10px 20px; border-radius: 30px;">
+                                            <span style="color: ${themeColor}; font-weight: 700; font-size: 1.1rem;">Intereses ⬇️</span>
+                                        </div>
+                                    </div>
+
+                                    <p style="text-align: center; color: #cbd5e1; font-size: 1rem; line-height: 1.6; margin: 0; padding: 0 10px;">
+                                        Has reducido tu deuda principal. Tus cuotas mensuales bajarán.
+                                    </p>
+                                `;
+                                UI.showModal(' ', amortMsg, [{ text: 'Genial', style: 'success', fn: null }], true);
                                 UI.updateBank(BankModule);
                                 UI.updateHeader();
                                 UI.updateDashboard();
@@ -6303,10 +6360,10 @@ const UI = {
 
                                         <div style="background: linear-gradient(145deg, rgba(30, 41, 59, 0.8), rgba(15, 23, 42, 0.6)); border: 1px solid ${themeColor}4d; border-radius: 16px; padding: 20px; text-align: center; margin-bottom: 20px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);">
                                             <div style="font-size: 0.85rem; color: #94a3b8; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px;">Nuevo Cargo</div>
-                                            <div style="font-size: 1.4rem; font-weight: 700; color: #f8fafc; margin-bottom: 15px;">${JobSys.jobTitle}</div>
+                                            <div style="font-size: 1.4rem; font-weight: 700; color: #f8fafc; margin-bottom: 15px;">${GameState.jobTitle}</div>
                                             
                                             <div style="display: inline-block; background: ${themeColor}26; border: 1px solid ${themeColor}4d; padding: 8px 16px; border-radius: 20px;">
-                                                <span style="color: ${themeColor}; font-weight: 700; font-size: 1.1rem;">${formatCurrency(JobSys.salary)}/mes</span>
+                                                <span style="color: ${themeColor}; font-weight: 700; font-size: 1.1rem;">${formatCurrency(GameState.salary)}/mes</span>
                                             </div>
                                         </div>
 
@@ -6397,13 +6454,36 @@ const UI = {
                         if (canRaise) {
                             raiseCard.querySelector('#btn-request-raise').onclick = () => {
                                 const res = JobSys.requestRaise();
-                                UI.showModal('Respuesta del Jefe', res.message, [{
-                                    text: 'Continuar', style: 'primary', fn: () => {
+                                // PREMIUM BOSS RESPONSE
+                                const themeColor = '#f97316'; // Orange
+                                const icon = '🗣️';
+
+                                let bossMsg = `
+                                    <div style="text-align: center; margin-bottom: 20px;">
+                                        <div style="font-size: 3.5rem; margin-bottom: 10px; filter: drop-shadow(0 0 15px ${themeColor}66); animation: bounceIn 0.6s cubic-bezier(0.68, -0.55, 0.265, 1.55);">${icon}</div>
+                                        <h3 style="color: ${themeColor}; margin: 0; font-size: 1.4rem; text-shadow: 0 0 10px ${themeColor}4d; font-weight: 800; letter-spacing: 1px;">RESPUESTA DEL JEFE</h3>
+                                    </div>
+
+                                    <div style="background: linear-gradient(145deg, rgba(30, 41, 59, 0.8), rgba(15, 23, 42, 0.6)); border: 1px solid ${themeColor}4d; border-radius: 16px; padding: 20px; text-align: center; margin-bottom: 20px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); position: relative;">
+                                        <div style="font-size: 3rem; position: absolute; top: -20px; left: 10px; opacity: 0.2; color: ${themeColor};">“</div>
+                                        <p style="color: #cbd5e1; font-size: 1.1rem; line-height: 1.6; margin: 10px 0; font-style: italic;">
+                                            ${res.message.replace(/^Tu jefa dice que\.\.\. /, '')}
+                                        </p>
+                                        <div style="font-size: 3rem; position: absolute; bottom: -40px; right: 10px; opacity: 0.2; color: ${themeColor};">”</div>
+                                    </div>
+                                    
+                                    <div style="text-align: center; font-size: 0.85rem; color: #94a3b8; margin-top: 15px;">
+                                        (Inténtalo de nuevo el próximo año...)
+                                    </div>
+                                `;
+
+                                UI.showModal(' ', bossMsg, [{
+                                    text: 'Entendido', style: 'primary', fn: () => {
                                         UI.updateJob(JobSys);
                                         UI.updateHeader();
                                         UI.updateDashboard();
                                     }
-                                }]);
+                                }], true);
                             };
                         }
                         dashboardGrid.appendChild(raiseCard);
@@ -6611,7 +6691,36 @@ const UI = {
                             UI.updateHeader();
                             UI.updateDashboard();
                         } else {
-                            UI.showModal('Solicitud Rechazada', res.message, [{ text: 'Vaya...', style: 'secondary', fn: null }]);
+                            // PREMIUM REJECTION MESSAGE
+                            const themeColor = '#f43f5e'; // Rose
+                            const icon = '🚫';
+
+                            let rejectMsg = `
+                                <div style="text-align: center; margin-bottom: 20px;">
+                                    <div style="font-size: 4rem; margin-bottom: 10px; filter: drop-shadow(0 0 15px ${themeColor}66); animation: shake 0.5s cubic-bezier(0.36, 0.07, 0.19, 0.97) both;">${icon}</div>
+                                    <h3 style="color: ${themeColor}; margin: 0; font-size: 1.5rem; text-shadow: 0 0 10px ${themeColor}4d; font-weight: 800; letter-spacing: 1px;">CANDIDATURA RECHAZADA</h3>
+                                </div>
+
+                                <div style="background: linear-gradient(145deg, rgba(30, 41, 59, 0.8), rgba(15, 23, 42, 0.6)); border: 1px solid ${themeColor}4d; border-radius: 16px; padding: 20px; text-align: center; margin-bottom: 20px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);">
+                                    <p style="color: #e2e8f0; font-size: 1rem; line-height: 1.5; margin: 0;">
+                                        ${res.message}
+                                    </p>
+                                </div>
+
+                                <p style="text-align: center; color: #94a3b8; font-size: 0.9rem; margin: 0;">
+                                    Revisa los requisitos y vuelve a intentarlo.
+                                </p>
+                                <style>
+                                    @keyframes shake {
+                                        10%, 90% { transform: translate3d(-1px, 0, 0); }
+                                        20%, 80% { transform: translate3d(2px, 0, 0); }
+                                        30%, 50%, 70% { transform: translate3d(-4px, 0, 0); }
+                                        40%, 60% { transform: translate3d(4px, 0, 0); }
+                                    }
+                                </style>
+                            `;
+
+                            UI.showModal(' ', rejectMsg, [{ text: 'Entendido', style: 'secondary', fn: null }], true);
                         }
                     };
                     marketGrid.appendChild(card);
@@ -7282,7 +7391,26 @@ const UI = {
                             </div>
                         `;
 
-                        UI.showModal('✨ Nuevo Empleado', nameInputHtml, [
+                        // PREMIUM HIRING MODAL
+                        const themeColor = '#06b6d4'; // Cyan
+                        const icon = '👥';
+
+                        let hireMsg = `
+                            <div style="text-align: center; margin-bottom: 20px;">
+                                <div style="font-size: 4rem; margin-bottom: 10px; filter: drop-shadow(0 0 15px ${themeColor}66); animation: bounceIn 0.6s cubic-bezier(0.68, -0.55, 0.265, 1.55);">${icon}</div>
+                                <h3 style="color: ${themeColor}; margin: 0; font-size: 1.6rem; text-shadow: 0 0 10px ${themeColor}4d; font-weight: 800; letter-spacing: 1px;">¡NUEVO TALENTO!</h3>
+                            </div>
+                            
+                            <div style="margin-bottom: 20px;">
+                                ${nameInputHtml}
+                            </div>
+                            
+                            <p style="text-align: center; color: #cbd5e1; font-size: 0.9rem; line-height: 1.5; margin: 0;">
+                                Contratar personal aumenta la capacidad de tu negocio.
+                            </p>
+                        `;
+
+                        UI.showModal(' ', hireMsg, [
                             {
                                 text: 'Cancelar',
                                 style: 'secondary',
@@ -7290,7 +7418,7 @@ const UI = {
                             },
                             {
                                 text: '¡Contratar!',
-                                style: 'success',
+                                style: 'primary', // Cyan button style
                                 fn: () => {
                                     const nameInput = document.getElementById('new-employee-name');
                                     let empName = (nameInput.value || '').trim().substring(0, 10) || role;
@@ -7308,7 +7436,7 @@ const UI = {
                                     }
                                 }
                             }
-                        ]);
+                        ], true);
 
                         // Focus input after modal renders
                         setTimeout(() => {
@@ -8001,7 +8129,30 @@ const UI = {
         // EVENT 1: Year 1, Month 4
         if (GameState.year === 1 && GameState.month === 4) {
             GameState.cash += 300;
-            UI.showModal('🎂 ¡Felicidades!', 'Tu familia te envía un regalo de cumpleaños.<br><br><strong>+300€</strong> añadidos a tu cartera.', [{ text: '¡Gracias!', style: 'primary' }]);
+            // PREMIUM BIRTHDAY MESSAGE
+            const themeColor = '#e879f9'; // Fuchsia
+            const icon = '🎁';
+
+            let bdayMsg = `
+                <div style="text-align: center; margin-bottom: 20px;">
+                    <div style="font-size: 4rem; margin-bottom: 10px; filter: drop-shadow(0 0 15px ${themeColor}66); animation: bounceIn 0.6s cubic-bezier(0.68, -0.55, 0.265, 1.55);">${icon}</div>
+                    <h3 style="color: ${themeColor}; margin: 0; font-size: 1.6rem; text-shadow: 0 0 10px ${themeColor}4d; font-weight: 800; letter-spacing: 1px;">¡FELIZ CUMPLEAÑOS!</h3>
+                </div>
+
+                <div style="background: linear-gradient(145deg, rgba(30, 41, 59, 0.8), rgba(15, 23, 42, 0.6)); border: 1px solid ${themeColor}4d; border-radius: 16px; padding: 25px; text-align: center; margin-bottom: 25px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);">
+                    <div style="font-size: 0.85rem; color: #94a3b8; text-transform: uppercase; letter-spacing: 1.5px; margin-bottom: 10px;">Regalo Familiar</div>
+                    <div style="font-size: 1.6rem; font-weight: 800; color: #f8fafc; margin-bottom: 15px;">+300,00 €</div>
+                    
+                    <div style="display: inline-block; background: ${themeColor}26; border: 1px solid ${themeColor}4d; padding: 10px 20px; border-radius: 30px;">
+                        <span style="color: ${themeColor}; font-weight: 700; font-size: 1.1rem;">Cash Extra</span>
+                    </div>
+                </div>
+
+                <p style="text-align: center; color: #cbd5e1; font-size: 1rem; line-height: 1.6; margin: 0; padding: 0 10px;">
+                    Tu familia te envía un regalo por tu aniversario. ¡Disfrútalo!
+                </p>
+            `;
+            UI.showModal(' ', bdayMsg, [{ text: '🥰 ¡Gracias!', style: 'primary', fn: null }], true);
             UI.playCoinSound();
         }
 
@@ -8125,10 +8276,35 @@ function nextTurn() {
     // Show expropriation modal if triggered
     if (expropriationTriggered) {
         setTimeout(() => {
+            // PREMIUM EXPROPRIATION MESSAGE
+            const themeColor = '#ef4444'; // Red
+            const icon = '☭';
+
+            let exproMsg = `
+                <div style="text-align: center; margin-bottom: 20px;">
+                    <div style="font-size: 4rem; margin-bottom: 10px; filter: drop-shadow(0 0 15px ${themeColor}66); animation: bounceIn 0.6s cubic-bezier(0.68, -0.55, 0.265, 1.55);">${icon}</div>
+                    <h3 style="color: ${themeColor}; margin: 0; font-size: 1.6rem; text-shadow: 0 0 10px ${themeColor}4d; font-weight: 800; letter-spacing: 1px;">EXPROPIACIÓN ESTATAL</h3>
+                </div>
+
+                <div style="background: linear-gradient(145deg, rgba(69, 10, 10, 0.8), rgba(30, 20, 20, 0.9)); border: 1px solid ${themeColor}4d; border-radius: 16px; padding: 25px; text-align: center; margin-bottom: 25px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);">
+                    <div style="font-size: 0.85rem; color: #94a3b8; text-transform: uppercase; letter-spacing: 1.5px; margin-bottom: 10px;">Impuesto Revolucionario (50%)</div>
+                    <div style="font-size: 1.6rem; font-weight: 800; color: #f87171; margin-bottom: 15px;">-${formatCurrency(expropriationAmount)}</div>
+                    
+                    <div style="display: inline-block; background: ${themeColor}26; border: 1px solid ${themeColor}4d; padding: 10px 20px; border-radius: 30px;">
+                        <span style="color: ${themeColor}; font-weight: 700; font-size: 1.1rem;">"Por el Bien Común"</span>
+                    </div>
+                </div>
+
+                <p style="text-align: center; color: #cbd5e1; font-size: 1rem; line-height: 1.6; margin: 0; padding: 0 10px;">
+                    El Estado ha decidido que tenías demasiado dinero. Se han incautado de la mitad de tu efectivo para financiar infraestructuras... o eso dicen.
+                </p>
+            `;
+
             UI.showModal(
-                '☭ Expropiación del Estado',
-                expropriationMessage,
-                [{ text: '😢 Entendido', style: 'danger', fn: null }]
+                ' ',
+                exproMsg,
+                [{ text: '😢 Entendido', style: 'danger', fn: null }],
+                true
             );
         }, 500);
     }
@@ -8140,10 +8316,59 @@ function nextTurn() {
     if (GameState.year === 4 && GameState.month === 1 && !GameState.taxWarningShown) {
         GameState.taxWarningShown = true;
         setTimeout(() => {
+            // PREMIUM TAX WARNING
+            const themeColor = '#3b82f6'; // Blue
+            const icon = '🏛️'; // Bank/Institution icon
+
+            let taxMsg = `
+                <div style="text-align: center; margin-bottom: 20px;">
+                    <div style="font-size: 4rem; margin-bottom: 10px; filter: drop-shadow(0 0 15px ${themeColor}66); animation: bounceIn 0.6s cubic-bezier(0.68, -0.55, 0.265, 1.55);">${icon}</div>
+                    <h3 style="color: ${themeColor}; margin: 0; font-size: 1.6rem; text-shadow: 0 0 10px ${themeColor}4d; font-weight: 800; letter-spacing: 1px;">HACIENDA SOMOS TODOS</h3>
+                </div>
+
+                <div style="background: linear-gradient(145deg, rgba(30, 41, 59, 0.8), rgba(15, 23, 42, 0.6)); border: 1px solid ${themeColor}4d; border-radius: 16px; padding: 25px; margin-bottom: 25px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);">
+                    <p style="text-align: center; color: #e2e8f0; font-size: 1rem; margin-bottom: 20px;">
+                        A partir de ahora, cada <strong>Mes 5</strong> deberás presentar la Declaración de la Renta.
+                    </p>
+                    
+                    <div style="background: rgba(15, 23, 42, 0.5); border-radius: 12px; overflow: hidden; border: 1px solid #334155;">
+                        <div style="display: grid; grid-template-columns: 1fr 100px; padding: 10px 15px; background: rgba(59, 130, 246, 0.1); border-bottom: 1px solid #334155; font-weight: 700; color: #93c5fd; font-size: 0.9rem;">
+                            <span>Tramo de Ingresos</span>
+                            <span style="text-align: right;">Tipo</span>
+                        </div>
+                        <div style="display: grid; grid-template-columns: 1fr 100px; padding: 8px 15px; border-bottom: 1px solid #334155; font-size: 0.9rem; color: #cbd5e1;">
+                            <span>&lt; 10.000€</span>
+                            <span style="text-align: right; color: #4ade80;">10%</span>
+                        </div>
+                        <div style="display: grid; grid-template-columns: 1fr 100px; padding: 8px 15px; border-bottom: 1px solid #334155; font-size: 0.9rem; color: #cbd5e1;">
+                            <span>10.000 - 25.000€</span>
+                            <span style="text-align: right; color: #facc15;">15%</span>
+                        </div>
+                        <div style="display: grid; grid-template-columns: 1fr 100px; padding: 8px 15px; border-bottom: 1px solid #334155; font-size: 0.9rem; color: #cbd5e1;">
+                            <span>25.000 - 50.000€</span>
+                            <span style="text-align: right; color: #fb923c;">25%</span>
+                        </div>
+                        <div style="display: grid; grid-template-columns: 1fr 100px; padding: 8px 15px; border-bottom: 1px solid #334155; font-size: 0.9rem; color: #cbd5e1;">
+                            <span>50.000 - 100.000€</span>
+                            <span style="text-align: right; color: #f87171;">35%</span>
+                        </div>
+                        <div style="display: grid; grid-template-columns: 1fr 100px; padding: 8px 15px; font-size: 0.9rem; color: #cbd5e1;">
+                            <span>&gt; 100.000€</span>
+                            <span style="text-align: right; color: #ef4444; font-weight: 700;">45%</span>
+                        </div>
+                    </div>
+                </div>
+
+                <p style="text-align: center; color: #94a3b8; font-size: 0.9rem; margin: 0; font-style: italic;">
+                    "No olvides reservar liquidez..." 
+                </p>
+            `;
+
             UI.showModal(
-                '📋 Aviso Importante: Impuestos',
-                `Esto es un <strong>simulador real</strong>... toca pagar impuestos al Estado de Sergio.<br><br>Se le informa que a partir de ahora el <strong>mes 5 de cada año</strong> deberá presentar la <strong>Declaración de la Renta</strong> y pagar impuestos, por lo que deberá <strong>reservar dinero en el banco</strong> para ello.<br><br><strong>Tramos impositivos progresivos:</strong><br>• Menos de 10.000€: 10%<br>• De 10.000€ a 25.000€: 15%<br>• De 25.000€ a 50.000€: 25%<br>• De 50.000€ a 100.000€: 35%<br>• Más de 100.000€: 45%`,
-                [{ text: 'Entendido', style: 'primary', fn: null }]
+                ' ',
+                taxMsg,
+                [{ text: 'Entendido', style: 'primary', fn: null }],
+                true
             );
         }, 800);
     }
@@ -8228,7 +8453,8 @@ function nextTurn() {
             UI.showModal(
                 '📋 Renta Año ' + (GameState.year - 1),
                 breakdown,
-                [{ text: '💸 Pagar Impuestos', style: 'danger', fn: null }]
+                [{ text: '💸 Pagar Impuestos', style: 'danger', fn: null }],
+                true
             );
         }
     }
