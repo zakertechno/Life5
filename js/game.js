@@ -200,7 +200,9 @@ const GameState = {
         completedFirstDegree: false,
         wentToWorkAfterDegree: false,
         acceptedFirstRealJob: false,
-        tutorialComplete: false
+        independent: false,
+        tutorialComplete: false,
+        momKickedOut: false // New permanent flag
     },
 
     // ANNUAL INCOME TRACKING FOR TAXES
@@ -2301,12 +2303,29 @@ const JobSystem = {
                 GameState.gigRemaining--;
             }
             if (GameState.gigRemaining <= 0) {
-                // Gig finished
                 // Gig finished - Show modal instead of toast for better visibility
+                const expiryMsg = `
+                    <div style="text-align: center; margin-bottom: 20px;">
+                        <div style="font-size: 4rem; margin-bottom: 10px; filter: drop-shadow(0 0 15px rgba(244, 63, 94, 0.4)); animation: bounceIn 0.6s;">🏁</div>
+                        <h3 style="color: #f43f5e; margin: 0; font-size: 1.5rem; text-shadow: 0 0 10px rgba(244, 63, 94, 0.3);">Contrato Finalizado</h3>
+                    </div>
+
+                    <div style="background: linear-gradient(145deg, rgba(30, 41, 59, 0.8), rgba(15, 23, 42, 0.6)); border: 1px solid rgba(244, 63, 94, 0.3); border-radius: 16px; padding: 20px; text-align: center; margin-bottom: 20px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);">
+                        <div style="font-size: 0.85rem; color: #94a3b8; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px;">Estado Laboral</div>
+                        <div style="font-size: 1.2rem; font-weight: 700; color: #f8fafc; margin-bottom: 10px;">Desempleado</div>
+                        <div style="font-size: 0.9rem; color: #cbd5e1;">Tu trabajo temporal ha concluido.</div>
+                    </div>
+
+                    <p style="text-align: center; color: #cbd5e1; font-size: 0.95rem; line-height: 1.5; margin: 0;">
+                        Es hora de buscar nuevas oportunidades en la sección de <strong>Trabajo</strong>.
+                    </p>
+                `;
+
                 UI.showModal(
-                    '⏰ Trabajo Finalizado',
-                    'Tu trabajo temporal ha terminado. Ahora estás desempleado.<br><br>Busca un nuevo trabajo en la pestaña <strong>Trabajo</strong>.',
-                    [{ text: 'Entendido', style: 'primary', fn: () => UI.updateJob(this) }]
+                    ' ',
+                    expiryMsg,
+                    [{ text: '🔍 Buscar Trabajo', style: 'primary', fn: () => UI.updateJob(this) }],
+                    true
                 );
                 GameState.jobTitle = 'Desempleado';
                 GameState.salary = 0;
@@ -6233,7 +6252,31 @@ const UI = {
                             nextCard.querySelector('#btn-promote').onclick = () => {
                                 const res = JobSys.promote();
                                 if (res.success) {
-                                    UI.showModal('¡Ascenso Conseguido!', res.message, [{ text: 'Celebrar', style: 'success', fn: () => UI.updateJob(JobSys) }]);
+                                    // PREMIUM PROMOTION MESSAGE
+                                    const themeColor = '#8b5cf6'; // Violet/Purple
+                                    const icon = '🚀';
+
+                                    let promoMsg = `
+                                        <div style="text-align: center; margin-bottom: 20px;">
+                                            <div style="font-size: 4rem; margin-bottom: 10px; filter: drop-shadow(0 0 15px ${themeColor}66); animation: bounceIn 0.6s cubic-bezier(0.68, -0.55, 0.265, 1.55);">${icon}</div>
+                                            <h3 style="color: ${themeColor}; margin: 0; font-size: 1.5rem; text-shadow: 0 0 10px ${themeColor}4d;">¡Ascenso Conseguido!</h3>
+                                        </div>
+
+                                        <div style="background: linear-gradient(145deg, rgba(30, 41, 59, 0.8), rgba(15, 23, 42, 0.6)); border: 1px solid ${themeColor}4d; border-radius: 16px; padding: 20px; text-align: center; margin-bottom: 20px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);">
+                                            <div style="font-size: 0.85rem; color: #94a3b8; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px;">Nuevo Cargo</div>
+                                            <div style="font-size: 1.4rem; font-weight: 700; color: #f8fafc; margin-bottom: 15px;">${JobSys.jobTitle}</div>
+                                            
+                                            <div style="display: inline-block; background: ${themeColor}26; border: 1px solid ${themeColor}4d; padding: 8px 16px; border-radius: 20px;">
+                                                <span style="color: ${themeColor}; font-weight: 700; font-size: 1.1rem;">${formatCurrency(JobSys.salary)}/mes</span>
+                                            </div>
+                                        </div>
+
+                                        <p style="text-align: center; color: #cbd5e1; font-size: 0.95rem; line-height: 1.5; margin: 0;">
+                                            Tu esfuerzo ha valido la pena. Tienes mayores responsabilidades y un mejor sueldo.
+                                        </p>
+                                    `;
+
+                                    UI.showModal(' ', promoMsg, [{ text: '🚀 ¡A por ello!', style: 'success', fn: () => UI.updateJob(JobSys) }], true);
                                     UI.updateHeader();
                                     UI.updateDashboard();
                                 } else {
@@ -6371,7 +6414,31 @@ const UI = {
                     card.querySelector('.btn-apply-small').onclick = () => {
                         const res = JobSys.applyToJob(vac.title);
                         if (res.success) {
-                            UI.showModal('¡Aceptado!', `Empiezas: <strong>${vac.title}</strong><br>Salario: ${formatCurrency(vac.salary)}/mes<br>Duración: ${vac.duration} meses.`, [{ text: 'OK', style: 'success', fn: () => UI.updateJob(JobSys) }]);
+                            // PREMIUM GIG WELCOME MESSAGE
+                            const themeColor = '#facc15';
+                            const icon = '⚡';
+
+                            let gigMsg = `
+                                <div style="text-align: center; margin-bottom: 20px;">
+                                    <div style="font-size: 4rem; margin-bottom: 10px; filter: drop-shadow(0 0 15px ${themeColor}66); animation: bounceIn 0.6s cubic-bezier(0.68, -0.55, 0.265, 1.55);">${icon}</div>
+                                    <h3 style="color: ${themeColor}; margin: 0; font-size: 1.6rem; text-shadow: 0 0 10px ${themeColor}4d; font-weight: 800; letter-spacing: 1px;">¡TRABAJO TEMPORAL!</h3>
+                                </div>
+
+                                <div style="background: linear-gradient(145deg, rgba(30, 41, 59, 0.8), rgba(15, 23, 42, 0.6)); border: 1px solid ${themeColor}4d; border-radius: 16px; padding: 25px; text-align: center; margin-bottom: 25px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);">
+                                    <div style="font-size: 0.85rem; color: #94a3b8; text-transform: uppercase; letter-spacing: 1.5px; margin-bottom: 10px;">Gig Aceptado</div>
+                                    <div style="font-size: 1.6rem; font-weight: 800; color: #f8fafc; margin-bottom: 15px;">${vac.title}</div>
+                                    
+                                    <div style="display: inline-block; background: ${themeColor}26; border: 1px solid ${themeColor}4d; padding: 10px 20px; border-radius: 30px;">
+                                        <span style="color: ${themeColor}; font-weight: 700; font-size: 1.2rem;">${formatCurrency(vac.salary)}/mes</span>
+                                    </div>
+                                </div>
+
+                                <p style="text-align: center; color: #cbd5e1; font-size: 1rem; line-height: 1.6; margin: 0; padding: 0 10px;">
+                                    Has aceptado un trabajo temporal. Ganarás dinero mientras dure el contrato.
+                                </p>
+                            `;
+
+                            UI.showModal(' ', gigMsg, [{ text: '🚀 ¡Empezar!', style: 'primary', fn: () => UI.updateJob(JobSys) }], true);
                             UI.updateHeader();
                             UI.updateDashboard();
                         } else {
@@ -6463,24 +6530,31 @@ const UI = {
                     card.querySelector('.btn-apply-small').onclick = () => {
                         const res = JobSys.applyToJob(vac.title);
                         if (res.success) {
+                            const isGig = vac.type === 'gig';
+                            // Use Blue/Cyan for Permanent Jobs to be distinct from Green (Success)
+                            const themeColor = isGig ? '#facc15' : '#0ea5e9'; // Yellow vs Sky Blue
+                            const icon = isGig ? '⚡' : '👔';
+                            const title = isGig ? '¡TRABAJO TEMPORAL!' : '¡CONTRATO FIRMADO!';
+                            const subTitle = isGig ? 'Gig Aceptado' : 'Nueva Trayectoria Profesional';
+
                             // PREMIUM WELCOME MESSAGE
                             let welcomeMsg = `
                                 <div style="text-align: center; margin-bottom: 20px;">
-                                    <div style="font-size: 4rem; margin-bottom: 10px; filter: drop-shadow(0 0 15px rgba(74, 222, 128, 0.4)); animation: bounceIn 0.6s cubic-bezier(0.68, -0.55, 0.265, 1.55);">🤝</div>
-                                    <h3 style="color: #4ade80; margin: 0; font-size: 1.5rem; text-shadow: 0 0 10px rgba(74, 222, 128, 0.3);">¡Oferta Aceptada!</h3>
+                                    <div style="font-size: 4rem; margin-bottom: 10px; filter: drop-shadow(0 0 15px ${themeColor}66); animation: bounceIn 0.6s cubic-bezier(0.68, -0.55, 0.265, 1.55);">${icon}</div>
+                                    <h3 style="color: ${themeColor}; margin: 0; font-size: 1.6rem; text-shadow: 0 0 10px ${themeColor}4d; font-weight: 800; letter-spacing: 1px;">${title}</h3>
                                 </div>
 
-                                <div style="background: linear-gradient(145deg, rgba(30, 41, 59, 0.8), rgba(15, 23, 42, 0.6)); border: 1px solid rgba(56, 189, 248, 0.3); border-radius: 16px; padding: 20px; text-align: center; margin-bottom: 20px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);">
-                                    <div style="font-size: 0.85rem; color: #94a3b8; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px;">Puesto</div>
-                                    <div style="font-size: 1.4rem; font-weight: 700; color: #f8fafc; margin-bottom: 15px;">${vac.title}</div>
+                                <div style="background: linear-gradient(145deg, rgba(30, 41, 59, 0.8), rgba(15, 23, 42, 0.6)); border: 1px solid ${themeColor}4d; border-radius: 16px; padding: 25px; text-align: center; margin-bottom: 25px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);">
+                                    <div style="font-size: 0.85rem; color: #94a3b8; text-transform: uppercase; letter-spacing: 1.5px; margin-bottom: 10px;">${subTitle}</div>
+                                    <div style="font-size: 1.6rem; font-weight: 800; color: #f8fafc; margin-bottom: 15px;">${vac.title}</div>
                                     
-                                    <div style="display: inline-block; background: rgba(74, 222, 128, 0.15); border: 1px solid rgba(74, 222, 128, 0.3); padding: 8px 16px; border-radius: 20px;">
-                                        <span style="color: #4ade80; font-weight: 700; font-size: 1.1rem;">${formatCurrency(vac.salary)}/mes</span>
+                                    <div style="display: inline-block; background: ${themeColor}26; border: 1px solid ${themeColor}4d; padding: 10px 20px; border-radius: 30px;">
+                                        <span style="color: ${themeColor}; font-weight: 700; font-size: 1.2rem;">${formatCurrency(vac.salary)}/mes</span>
                                     </div>
                                 </div>
 
-                                <p style="text-align: center; color: #cbd5e1; font-size: 0.95rem; line-height: 1.5; margin: 0;">
-                                    ¡Enhorabuena! Ahora formas parte del equipo. Tu primer sueldo llegará a final de mes.
+                                <p style="text-align: center; color: #cbd5e1; font-size: 1rem; line-height: 1.6; margin: 0; padding: 0 10px;">
+                                    ${isGig ? 'Has aceptado un trabajo temporal. Ganarás dinero mientras dure el contrato.' : '¡Bienvenido al equipo! Has dado un gran paso en tu carrera profesional. Tu primer sueldo llegará a final de mes.'}
                                 </p>
                             `;
 
@@ -6489,7 +6563,7 @@ const UI = {
                             }
 
                             if (!res.tutorialHandled) {
-                                UI.showModal(' ', welcomeMsg, [{ text: '🚀 ¡Empezar!', style: 'success', fn: () => UI.updateJob(JobSys) }]);
+                                UI.showModal(' ', welcomeMsg, [{ text: '🚀 ¡Empezar!', style: 'primary', fn: () => UI.updateJob(JobSys) }], true);
                             } else {
                                 // If tutorial handled it, just update header/dashboard silently in background
                                 UI.updateJob(JobSys);
@@ -7900,9 +7974,11 @@ const UI = {
 
         // EVENT 2B: Year 2, Month 4 - Kicked out (or later if missed)
         if (!GameState.tutorialState.forceHousing &&
+            !GameState.tutorialFlags.momKickedOut && // Prevent re-triggering
             ((GameState.year === 2 && GameState.month >= 4) || GameState.year > 2)) {
 
             GameState.cash += 300;
+            GameState.tutorialFlags.momKickedOut = true; // Mark as done permanently
 
             UI.playCoinSound();
 
