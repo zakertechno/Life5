@@ -3188,13 +3188,28 @@ const TutorialSystem = {
 
             UI.updateLifestyle(LifestyleModule);
 
-            // BLOCK NAVIGATION
-            document.querySelectorAll('.nav-btn').forEach(btn => {
+            // BLOCK NAVIGATION, NEXT TURN, AND USER PROFILE
+            document.querySelectorAll('.nav-btn, .b-nav-item').forEach(btn => {
                 btn.style.pointerEvents = 'none';
                 btn.style.opacity = '0.5';
             });
             const activeBtn = document.querySelector(`.nav-btn.active`);
             if (activeBtn) activeBtn.style.opacity = '1';
+            const activeMobileBtn = document.querySelector(`.b-nav-item.active`);
+            if (activeMobileBtn) activeMobileBtn.style.opacity = '1';
+
+            // Block Next Turn Buttons
+            document.querySelectorAll('#next-turn-btn, #dashboard-next-btn').forEach(btn => {
+                btn.style.pointerEvents = 'none';
+                btn.style.opacity = '0.5';
+            });
+
+            // Block User Profile (Parent of the name display)
+            const userProfileBtn = document.getElementById('header-player-name')?.parentElement;
+            if (userProfileBtn) {
+                userProfileBtn.style.pointerEvents = 'none';
+                userProfileBtn.style.opacity = '0.5';
+            }
 
             // Highlight Housing Section
             setTimeout(() => {
@@ -3239,11 +3254,22 @@ const TutorialSystem = {
         this.removeHighlights();
         this.hideTooltip();
 
-        // UNBLOCK NAVIGATION
-        document.querySelectorAll('.nav-btn').forEach(btn => {
+        // UNBLOCK NAVIGATION, NEXT TURN, AND USER PROFILE
+        document.querySelectorAll('.nav-btn, .b-nav-item').forEach(btn => {
             btn.style.pointerEvents = 'all';
             btn.style.opacity = '1';
         });
+
+        document.querySelectorAll('#next-turn-btn, #dashboard-next-btn').forEach(btn => {
+            btn.style.pointerEvents = 'all';
+            btn.style.opacity = '1';
+        });
+
+        const userProfileBtn = document.getElementById('header-player-name')?.parentElement;
+        if (userProfileBtn) {
+            userProfileBtn.style.pointerEvents = 'all';
+            userProfileBtn.style.opacity = '1';
+        }
 
         // 1. Congratulate Modal
         // 1. Congratulate Modal
