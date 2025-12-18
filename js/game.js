@@ -191,6 +191,18 @@ const GameState = {
         forceHousing: false
     },
 
+    // TUTORIAL SYSTEM - Obligatory guided tutorial
+    tutorialStep: 0,  // 0=start, 1-8=steps, 99=completed
+    tutorialFlags: {
+        educationChosen: false,
+        wentToWorkFirst: false,
+        acceptedFirstGig: false,
+        completedFirstDegree: false,
+        wentToWorkAfterDegree: false,
+        acceptedFirstRealJob: false,
+        tutorialComplete: false
+    },
+
     // ANNUAL INCOME TRACKING FOR TAXES
     currentYearIncome: {
         salary: 0,
@@ -1482,6 +1494,12 @@ const EducationModule = {
         GameState.isStudying = false;
         GameState.currentCourse = null;
 
+        // Trigger tutorial step 5 if this is the first degree
+        if (!GameState.tutorialFlags.completedFirstDegree) {
+            TutorialSystem.onDegreeCompleted(course.name);
+            return; // Tutorial handles the modal
+        }
+
         let message = `
                     <style>
                         /* HACK: Tighten spacing for Course Completion modal */
@@ -2482,6 +2500,16 @@ const JobSystem = {
         }
 
         this.switchJobEnhanced(targetPath, targetJob);
+
+        // Tutorial triggers
+        if (targetPath === 'temporary') {
+            // Accepted a gig
+            TutorialSystem.onGigAccepted();
+        } else {
+            // Accepted a real job
+            TutorialSystem.onRealJobAccepted(targetJob.title);
+        }
+
         return { success: true, message: `¡Contratado como ${targetJob.title}!` };
     },
 
@@ -2517,6 +2545,527 @@ const JobSystem = {
             raisePct: raisePct,
             message: `"${msg}"\n\nTu salario ha subido un ${raisePct}% (+${formatCurrency(increase)}).`
         };
+    }
+};
+
+/*******************************************************
+ * TUTORIAL SYSTEM - Obligatory Guided Tutorial
+ *******************************************************/
+const TutorialSystem = {
+    overlayElement: null,
+    highlightedElements: [],
+
+    // CSS styles for tutorial (injected once)
+    injectStyles() {
+        if (document.getElementById('tutorial-styles')) return;
+        const style = document.createElement('style');
+        style.id = 'tutorial-styles';
+        style.textContent = `
+            .tutorial-overlay {
+                position: fixed !important;
+                top: 0 !important;
+                left: 0 !important;
+                right: 0 !important;
+                bottom: 0 !important;
+                width: 100vw !important;
+                height: 100vh !important;
+                background: rgba(0, 0, 0, 0.9) !important;
+                z-index: 99999 !important;
+                pointer-events: all !important;
+                animation: tutorialFadeIn 0.3s ease-out;
+            }
+            @keyframes tutorialFadeIn {
+                from { opacity: 0; }
+                to { opacity: 1; }
+            }
+            .tutorial-highlight {
+                position: relative !important;
+                z-index: 100001 !important;
+                animation: tutorialPulse 1.5s infinite !important;
+                box-shadow: 0 0 0 4px rgba(56, 189, 248, 0.8), 0 0 40px rgba(56, 189, 248, 0.6) !important;
+                pointer-events: auto !important;
+                border-radius: 12px !important;
+            }
+            @keyframes tutorialPulse {
+                0%, 100% { box-shadow: 0 0 0 4px rgba(56, 189, 248, 0.8), 0 0 30px rgba(56, 189, 248, 0.5); }
+                50% { box-shadow: 0 0 0 8px rgba(56, 189, 248, 0.6), 0 0 50px rgba(56, 189, 248, 0.7); }
+            }
+            .tutorial-tooltip {
+                position: fixed !important;
+                background: linear-gradient(145deg, #1e293b, #0f172a) !important;
+                border: 2px solid rgba(56, 189, 248, 0.6) !important;
+                border-radius: 16px !important;
+                padding: 20px !important;
+                max-width: 320px !important;
+                z-index: 100002 !important;
+                color: #f8fafc !important;
+                box-shadow: 0 20px 50px rgba(0, 0, 0, 0.8), 0 0 40px rgba(56, 189, 248, 0.3) !important;
+                animation: tutorialSlideIn 0.3s ease-out;
+            }
+            @keyframes tutorialSlideIn {
+                from { transform: translateY(20px); opacity: 0; }
+                to { transform: translateY(0); opacity: 1; }
+            }
+            .tutorial-tooltip h3 {
+                color: #38bdf8;
+                margin: 0 0 12px 0;
+                font-size: 1.1rem;
+                display: flex;
+                align-items: center;
+                gap: 8px;
+            }
+            .tutorial-tooltip p {
+                margin: 0 0 15px 0;
+                font-size: 0.9rem;
+                line-height: 1.5;
+                color: #e2e8f0;
+            }
+            .tutorial-tooltip button {
+                background: linear-gradient(135deg, #38bdf8, #0ea5e9);
+                border: none;
+                color: white;
+                padding: 12px 24px;
+                border-radius: 10px;
+                font-size: 0.95rem;
+                font-weight: 700;
+                cursor: pointer;
+                width: 100%;
+                transition: all 0.2s;
+            }
+            .tutorial-tooltip button:hover {
+                transform: translateY(-2px);
+                box-shadow: 0 4px 15px rgba(56, 189, 248, 0.4);
+            }
+            .tutorial-arrow {
+                position: absolute;
+                width: 0;
+                height: 0;
+                border: 10px solid transparent;
+            }
+            .tutorial-arrow.bottom {
+                bottom: -20px;
+                left: 50%;
+                transform: translateX(-50%);
+                border-top-color: rgba(56, 189, 248, 0.5);
+            }
+        `;
+        document.head.appendChild(style);
+    },
+
+    showOverlay() {
+        this.injectStyles();
+        if (this.overlayElement) return;
+        this.overlayElement = document.createElement('div');
+        this.overlayElement.className = 'tutorial-overlay';
+        document.body.appendChild(this.overlayElement);
+    },
+
+    hideOverlay() {
+        if (this.overlayElement) {
+            this.overlayElement.remove();
+            this.overlayElement = null;
+        }
+    },
+
+    addHighlight(selector) {
+        const elements = document.querySelectorAll(selector);
+        elements.forEach(el => {
+            el.classList.add('tutorial-highlight');
+            this.highlightedElements.push(el);
+        });
+    },
+
+    removeHighlights() {
+        this.highlightedElements.forEach(el => {
+            el.classList.remove('tutorial-highlight');
+        });
+        this.highlightedElements = [];
+    },
+
+    showTooltip(targetSelector, title, message, buttonText, onComplete) {
+        // Remove existing tooltip
+        const existing = document.querySelector('.tutorial-tooltip');
+        if (existing) existing.remove();
+
+        const target = document.querySelector(targetSelector);
+        if (!target) return;
+
+        const tooltip = document.createElement('div');
+        tooltip.className = 'tutorial-tooltip';
+        tooltip.innerHTML = `
+            <h3>💡 ${title}</h3>
+            <p>${message}</p>
+            <button>${buttonText}</button>
+            <div class="tutorial-arrow bottom"></div>
+        `;
+
+        document.body.appendChild(tooltip);
+
+        // Position tooltip above target
+        const targetRect = target.getBoundingClientRect();
+        const tooltipRect = tooltip.getBoundingClientRect();
+
+        let top = targetRect.top - tooltipRect.height - 20;
+        let left = targetRect.left + (targetRect.width / 2) - (tooltipRect.width / 2);
+
+        // Keep within viewport
+        if (top < 10) top = targetRect.bottom + 20;
+        if (left < 10) left = 10;
+        if (left + tooltipRect.width > window.innerWidth - 10) {
+            left = window.innerWidth - tooltipRect.width - 10;
+        }
+
+        tooltip.style.top = top + 'px';
+        tooltip.style.left = left + 'px';
+
+        // Button handler
+        tooltip.querySelector('button').onclick = () => {
+            tooltip.remove();
+            if (onComplete) onComplete();
+        };
+    },
+
+    hideTooltip() {
+        const existing = document.querySelector('.tutorial-tooltip');
+        if (existing) existing.remove();
+    },
+
+    // STEP 1: Choose Education
+    step1_ChooseEducation() {
+        if (GameState.tutorialFlags.educationChosen) return;
+
+        // Inject styles first
+        this.injectStyles();
+
+        GameState.tutorialStep = 1;
+
+        // Create education choice modal
+        const overlay = document.createElement('div');
+        overlay.className = 'tutorial-overlay';
+        overlay.style.display = 'flex';
+        overlay.style.alignItems = 'center';
+        overlay.style.justifyContent = 'center';
+        overlay.innerHTML = `
+            <div style="
+                background: linear-gradient(145deg, #1e293b, #0f172a);
+                border: 2px solid rgba(56, 189, 248, 0.4);
+                border-radius: 24px;
+                padding: 35px;
+                max-width: 450px;
+                width: 90%;
+                text-align: center;
+                box-shadow: 0 30px 60px rgba(0, 0, 0, 0.6), 0 0 50px rgba(56, 189, 248, 0.15);
+                animation: tutorialSlideIn 0.4s ease-out;
+            ">
+                <div style="font-size: 4rem; margin-bottom: 15px; filter: drop-shadow(0 0 20px rgba(56, 189, 248, 0.4));">🎓</div>
+                <h2 style="color: #38bdf8; margin: 0 0 10px 0; font-size: 1.5rem;">¡Bienvenido!</h2>
+                <p style="color: #94a3b8; margin: 0 0 25px 0; font-size: 0.95rem;">
+                    Tienes 16 años y acabas de terminar la ESO.<br>
+                    Es hora de decidir tu futuro.
+                </p>
+                <p style="color: #e2e8f0; margin: 0 0 20px 0; font-size: 1rem; font-weight: 600;">
+                    Elige tu formación:
+                </p>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                    <button id="tutorial-choose-bach" style="
+                        background: linear-gradient(145deg, rgba(56, 189, 248, 0.1), rgba(14, 165, 233, 0.05));
+                        border: 2px solid rgba(56, 189, 248, 0.3);
+                        border-radius: 16px;
+                        padding: 20px 15px;
+                        cursor: pointer;
+                        transition: all 0.3s;
+                        color: #f8fafc;
+                    ">
+                        <div style="font-size: 2.5rem; margin-bottom: 10px;">📚</div>
+                        <div style="font-weight: 700; font-size: 1rem; margin-bottom: 5px;">Bachillerato</div>
+                        <div style="font-size: 0.75rem; color: #94a3b8;">18 meses • Gratis</div>
+                        <div style="font-size: 0.7rem; color: #4ade80; margin-top: 5px;">→ Acceso a Universidad</div>
+                    </button>
+                    <button id="tutorial-choose-fp" style="
+                        background: linear-gradient(145deg, rgba(250, 204, 21, 0.1), rgba(234, 179, 8, 0.05));
+                        border: 2px solid rgba(250, 204, 21, 0.3);
+                        border-radius: 16px;
+                        padding: 20px 15px;
+                        cursor: pointer;
+                        transition: all 0.3s;
+                        color: #f8fafc;
+                    ">
+                        <div style="font-size: 2.5rem; margin-bottom: 10px;">🔧</div>
+                        <div style="font-weight: 700; font-size: 1rem; margin-bottom: 5px;">FP Grado Medio</div>
+                        <div style="font-size: 0.75rem; color: #94a3b8;">18 meses • 500€</div>
+                        <div style="font-size: 0.7rem; color: #4ade80; margin-top: 5px;">→ Empleo rápido</div>
+                    </button>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(overlay);
+
+        // Button handlers with hover effects
+        const bachBtn = overlay.querySelector('#tutorial-choose-bach');
+        const fpBtn = overlay.querySelector('#tutorial-choose-fp');
+
+        [bachBtn, fpBtn].forEach(btn => {
+            btn.onmouseenter = () => {
+                btn.style.transform = 'translateY(-5px)';
+                btn.style.boxShadow = '0 10px 30px rgba(0, 0, 0, 0.3)';
+            };
+            btn.onmouseleave = () => {
+                btn.style.transform = 'translateY(0)';
+                btn.style.boxShadow = 'none';
+            };
+        });
+
+        bachBtn.onclick = () => {
+            overlay.remove();
+            EducationModule.startCourse('bachillerato');
+            GameState.tutorialFlags.educationChosen = true;
+            this.step2_GoToWork();
+        };
+
+        fpBtn.onclick = () => {
+            overlay.remove();
+            // Check if player can afford FP
+            if (GameState.cash >= 500) {
+                EducationModule.startCourse('fp_medio');
+            } else {
+                EducationModule.startCourse('bachillerato');
+                showGameAlert('No tienes 500€ para FP. Te has matriculado en Bachillerato (gratis).', 'info');
+            }
+            GameState.tutorialFlags.educationChosen = true;
+            this.step2_GoToWork();
+        };
+    },
+
+    // STEP 2: Go to Work tab
+    step2_GoToWork() {
+        if (GameState.tutorialFlags.wentToWorkFirst) return;
+
+        GameState.tutorialStep = 2;
+
+        // Update UI to show education status
+        UI.updateEducation(EducationModule);
+
+        // Wait a moment, then show overlay and highlight Work tab
+        setTimeout(() => {
+            this.showOverlay();
+            this.addHighlight('.b-nav-item[data-view="job"]');
+
+            this.showTooltip(
+                '.b-nav-item[data-view="job"]',
+                'Trabaja mientras estudias',
+                'Mientras estudias puedes ganar dinero con trabajos temporales. ¡Haz click en la pestaña Trabajo!',
+                'Entendido',
+                () => {
+                    // Keep overlay until they click Work tab
+                }
+            );
+
+            // Listen for Work tab click
+            const workTab = document.querySelector('.b-nav-item[data-view="job"]');
+            if (workTab) {
+                const originalClick = workTab.onclick;
+                workTab.onclick = (e) => {
+                    this.hideOverlay();
+                    this.removeHighlights();
+                    this.hideTooltip();
+                    GameState.tutorialFlags.wentToWorkFirst = true;
+                    if (originalClick) originalClick.call(workTab, e);
+                    setTimeout(() => this.step3_AcceptGig(), 500);
+                };
+            }
+        }, 1500);
+    },
+
+    // STEP 3: Accept a Gig
+    step3_AcceptGig() {
+        if (GameState.tutorialFlags.acceptedFirstGig) return;
+
+        GameState.tutorialStep = 3;
+
+        // Show explanation modal first
+        showGameAlert(
+            'Sin titulación, solo tienes acceso a trabajos temporales (gigs).<br><br>' +
+            '💡 <strong>Consejo:</strong> Acepta gigs mientras estudias para tener dinero extra.<br><br>' +
+            'Cuando termines tu formación, desbloquearás <strong>empleos fijos</strong>.',
+            'info',
+            '🎒 Trabajos Temporales'
+        );
+
+        // After modal closes, highlight gig buttons
+        setTimeout(() => {
+            this.showOverlay();
+            this.addHighlight('.gig-card');
+            this.addHighlight('.gig-card button');
+        }, 500);
+    },
+
+    // Called when player accepts any gig
+    onGigAccepted() {
+        if (GameState.tutorialStep === 3 && !GameState.tutorialFlags.acceptedFirstGig) {
+            this.hideOverlay();
+            this.removeHighlights();
+            GameState.tutorialFlags.acceptedFirstGig = true;
+            GameState.tutorialStep = 4; // Free play while studying
+
+            showGameAlert(
+                '¡Perfecto! Ahora tienes un trabajo temporal mientras estudias.<br><br>' +
+                'El juego ahora es libre. Avanza el tiempo con "Siguiente Mes" y espera a completar tu formación.',
+                'success',
+                '✅ ¡Primer Trabajo!'
+            );
+        }
+    },
+
+    // STEP 5: Degree completed
+    onDegreeCompleted(degreeName) {
+        if (GameState.tutorialFlags.completedFirstDegree) return;
+
+        GameState.tutorialStep = 5;
+        GameState.tutorialFlags.completedFirstDegree = true;
+
+        // Show celebration modal
+        const overlay = document.createElement('div');
+        overlay.className = 'tutorial-overlay';
+        overlay.style.display = 'flex';
+        overlay.style.alignItems = 'center';
+        overlay.style.justifyContent = 'center';
+        overlay.innerHTML = `
+            <div style="
+                background: linear-gradient(145deg, #1e293b, #0f172a);
+                border: 2px solid rgba(74, 222, 128, 0.4);
+                border-radius: 24px;
+                padding: 35px;
+                max-width: 400px;
+                width: 90%;
+                text-align: center;
+                box-shadow: 0 30px 60px rgba(0, 0, 0, 0.6), 0 0 50px rgba(74, 222, 128, 0.15);
+                animation: tutorialSlideIn 0.4s ease-out;
+            ">
+                <div style="font-size: 4rem; margin-bottom: 15px; filter: drop-shadow(0 0 20px rgba(74, 222, 128, 0.4)); animation: tutorialPulse 1s infinite;">🎓</div>
+                <h2 style="color: #4ade80; margin: 0 0 15px 0; font-size: 1.6rem; text-shadow: 0 0 20px rgba(74, 222, 128, 0.3);">¡ENHORABUENA!</h2>
+                <p style="color: #e2e8f0; margin: 0 0 20px 0; font-size: 1rem;">
+                    Has completado: <strong style="color: #38bdf8;">${degreeName}</strong>
+                </p>
+                <div style="background: rgba(74, 222, 128, 0.1); border: 1px solid rgba(74, 222, 128, 0.3); border-radius: 12px; padding: 15px; margin-bottom: 20px; text-align: left;">
+                    <div style="margin-bottom: 8px; font-size: 0.9rem;">✅ Acceso a empleos fijos</div>
+                    <div style="margin-bottom: 8px; font-size: 0.9rem;">✅ Mejores salarios disponibles</div>
+                    <div style="font-size: 0.9rem;">✅ Posibilidad de ascender</div>
+                </div>
+                <button id="tutorial-go-work-btn" style="
+                    background: linear-gradient(135deg, #4ade80, #22c55e);
+                    border: none;
+                    color: #0f172a;
+                    padding: 15px 30px;
+                    border-radius: 12px;
+                    font-size: 1rem;
+                    font-weight: 700;
+                    cursor: pointer;
+                    width: 100%;
+                    transition: all 0.2s;
+                    box-shadow: 0 4px 15px rgba(74, 222, 128, 0.3);
+                ">🔍 Buscar Empleo</button>
+            </div>
+        `;
+        document.body.appendChild(overlay);
+
+        overlay.querySelector('#tutorial-go-work-btn').onclick = () => {
+            overlay.remove();
+            GameState.tutorialFlags.wentToWorkAfterDegree = true;
+            // Navigate to Work tab
+            document.querySelector('.b-nav-item[data-view="job"]')?.click();
+            setTimeout(() => this.step6_AcceptRealJob(), 500);
+        };
+    },
+
+    // STEP 6: Accept Real Job
+    step6_AcceptRealJob() {
+        GameState.tutorialStep = 6;
+
+        this.showOverlay();
+        // Highlight career job cards, not gigs
+        setTimeout(() => {
+            this.addHighlight('.career-job-card');
+            this.addHighlight('.career-job-card button');
+
+            this.showTooltip(
+                '.career-job-card',
+                'Tu Primer Empleo Fijo',
+                'Elige un empleo de la lista. ¡Los trabajos fijos pagan mejor y te permiten ascender!',
+                'Entendido',
+                () => { }
+            );
+        }, 300);
+    },
+
+    // Called when player accepts a real job (not gig)
+    onRealJobAccepted(jobTitle) {
+        if (GameState.tutorialStep === 6 && !GameState.tutorialFlags.acceptedFirstRealJob) {
+            this.hideOverlay();
+            this.removeHighlights();
+            this.hideTooltip();
+            GameState.tutorialFlags.acceptedFirstRealJob = true;
+            GameState.tutorialStep = 7;
+
+            this.step7_ExplainJobSystem(jobTitle);
+        }
+    },
+
+    // STEP 7: Explain Job System
+    step7_ExplainJobSystem(jobTitle) {
+        const content = `
+            <div style="text-align: center; margin-bottom: 20px;">
+                <div style="font-size: 3rem; margin-bottom: 10px; filter: drop-shadow(0 0 15px rgba(56, 189, 248, 0.4));">💼</div>
+                <div style="font-size: 0.85rem; color: #94a3b8; text-transform: uppercase; letter-spacing: 2px;">Tu Primer Empleo Fijo</div>
+            </div>
+            
+            <div style="background: linear-gradient(145deg, rgba(74, 222, 128, 0.1), rgba(34, 197, 94, 0.05)); border: 1px solid rgba(74, 222, 128, 0.3); border-radius: 12px; padding: 15px; margin-bottom: 15px; text-align: center;">
+                <div style="font-size: 1.2rem; color: #4ade80; font-weight: 700;">${jobTitle}</div>
+            </div>
+            
+            <div style="display: grid; gap: 12px;">
+                <div style="background: rgba(15, 23, 42, 0.5); border-radius: 10px; padding: 12px;">
+                    <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 5px;">
+                        <span style="font-size: 1.2rem;">📈</span>
+                        <span style="color: #38bdf8; font-weight: 600;">Ascensos</span>
+                    </div>
+                    <div style="font-size: 0.85rem; color: #94a3b8;">Pide aumentos cuando lleves tiempo. La educación superior desbloquea carreras mejores.</div>
+                </div>
+                <div style="background: rgba(15, 23, 42, 0.5); border-radius: 10px; padding: 12px;">
+                    <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 5px;">
+                        <span style="font-size: 1.2rem;">💰</span>
+                        <span style="color: #38bdf8; font-weight: 600;">Salario</span>
+                    </div>
+                    <div style="font-size: 0.85rem; color: #94a3b8;">Cobras cada mes automáticamente. Aparece en tu Dashboard.</div>
+                </div>
+                <div style="background: rgba(15, 23, 42, 0.5); border-radius: 10px; padding: 12px;">
+                    <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 5px;">
+                        <span style="font-size: 1.2rem;">🔄</span>
+                        <span style="color: #38bdf8; font-weight: 600;">Cambiar</span>
+                    </div>
+                    <div style="font-size: 0.85rem; color: #94a3b8;">Puedes aplicar a otros empleos cuando quieras. Algunos requieren títulos.</div>
+                </div>
+            </div>
+        `;
+
+        UI.showModal(
+            '🎉 ¡Felicidades!',
+            content,
+            [{
+                text: '¡A trabajar! 💪', style: 'primary', fn: () => {
+                    GameState.tutorialStep = 8;
+                    GameState.tutorialFlags.tutorialComplete = true;
+                    PersistenceModule.saveGame();
+                }
+            }]
+        );
+    },
+
+    // Check if tutorial should start
+    checkStart() {
+        if (GameState.tutorialFlags.tutorialComplete) return;
+        if (GameState.tutorialStep === 0 && !GameState.tutorialFlags.educationChosen) {
+            this.step1_ChooseEducation();
+        }
     }
 };
 
@@ -4398,20 +4947,8 @@ const UI = {
 
     // TUTORIAL MODULE
     startInitialTutorial() {
-        const steps = [
-            {
-                title: '👋 Bienvenido/a',
-                msg: `Hola <strong>${GameState.playerName}</strong>.<br><br>Este es un juego de <strong>simulación real</strong> donde comienzas con 16 años recién acabada la ESO.<br><br>Tus decisiones marcarán tu vida. Tu objetivo es darle la <strong>mejor vida posible</strong> a tu personaje.`
-            },
-            {
-                title: '🎓 Primer Paso: Formación',
-                msg: 'Ve a la pestaña <strong>FORMACIÓN</strong> para elegir tu camino educativo.<br><br>Es momento de decidir tu futuro.'
-            }
-        ];
-        UI.runTutorialSequence(steps, () => {
-            GameState.tutorialState.initial = true;
-            PersistenceModule.saveGame();
-        });
+        // Use the new obligatory TutorialSystem
+        TutorialSystem.checkStart();
     },
 
     checkContextualTutorial(view) {
