@@ -3649,7 +3649,7 @@ const formatPercent = (val) => (val * 100).toFixed(2) + '%';
  * @param {string} title - Optional title (auto-generated if not provided)
  * @param {Function} callback - Optional callback
  */
-function showGameAlert(message, type = 'info', title = null, callback = null) {
+function showGameAlert(message, type = 'info', title = null, callback = null, blocking = false) {
     const config = {
         info: {
             icon: '💬',
@@ -3758,21 +3758,23 @@ function showGameAlert(message, type = 'info', title = null, callback = null) {
                 color: #e2e8f0;
                 margin: 0;
                 font-size: 0.95rem;
-                line-height: 1.6;
-            ">${message.replace(/\n/g, '<br>')}</p>
+                line-height: 1.5;
+            ">${message}</p>
         </div>
         <button class="game-alert-btn" style="
             background: ${cfg.btnStyle};
+            color: white;
             border: none;
-            color: ${type === 'warning' ? '#0f172a' : 'white'};
-            padding: 14px 40px;
-            border-radius: 12px;
-            font-size: 1rem;
+            padding: 12px 30px;
+            border-radius: 25px;
             font-weight: 700;
+            font-size: 1rem;
             cursor: pointer;
-            transition: all 0.2s;
-            box-shadow: 0 4px 15px ${cfg.glowColor};
-        ">Entendido</button>
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            transition: transform 0.2s, box-shadow 0.2s;
+        ">
+            Entendido
+        </button>
     `;
 
     overlay.appendChild(modal);
@@ -3790,17 +3792,17 @@ function showGameAlert(message, type = 'info', title = null, callback = null) {
         }, 150);
     };
 
-    // Close on overlay click (Prevent for error/critical alerts)
+    // Close on overlay click (Prevent for error/critical alerts or forced blocking)
     overlay.onclick = (e) => {
-        if (type !== 'error' && e.target === overlay) {
+        if (!blocking && type !== 'error' && e.target === overlay) {
             overlay.style.animation = 'fadeIn 0.15s ease-out reverse';
             setTimeout(() => overlay.remove(), 150);
         }
     };
 
-    // Close on Escape key (Prevent for error/critical alerts)
+    // Close on Escape key (Prevent for error/critical alerts or forced blocking)
     const escHandler = (e) => {
-        if (type !== 'error' && e.key === 'Escape') {
+        if (!blocking && type !== 'error' && e.key === 'Escape') {
             overlay.remove();
             document.removeEventListener('keydown', escHandler);
         }
@@ -9005,6 +9007,33 @@ try {
             btn.onclick = () => {
                 const view = btn.dataset.view;
                 console.log('DEBUG: Bottom Nav Clicked', view);
+
+                // LOCK BANK UNTIL Y3 M6
+                if (view === 'bank' && (GameState.year < 3 || (GameState.year === 3 && GameState.month < 6))) {
+                    UI.showView(view); // Show background
+                    showGameAlert(
+                        '🔒 Acceso Restringido.<br>Disponible próximamente tras avanzar en el juego.',
+                        'warning',
+                        null,
+                        () => UI.showView('dashboard'),
+                        true
+                    );
+                    return;
+                }
+
+                // LOCK STOCK UNTIL 25K NET WORTH
+                if (view === 'market' && GameState.netWorth < 25000) {
+                    UI.showView(view); // Show background
+                    showGameAlert(
+                        '🔒 Acceso Restringido.<br>Necesitas un patrimonio de 25.000€ para operar en Bolsa.',
+                        'warning',
+                        null,
+                        () => UI.showView('dashboard'),
+                        true
+                    );
+                    return;
+                }
+
                 UI.showView(view);
             };
         });
@@ -9014,6 +9043,33 @@ try {
             const originalClick = btn.onclick; // Preserving if any (though usually handled by event delegation or loop below)
             btn.onclick = () => {
                 const view = btn.dataset.view;
+
+                // LOCK BANK UNTIL Y3 M6
+                if (view === 'bank' && (GameState.year < 3 || (GameState.year === 3 && GameState.month < 6))) {
+                    UI.showView(view); // Show background
+                    showGameAlert(
+                        '🔒 Acceso Restringido.<br>Disponible próximamente tras avanzar en el juego.',
+                        'warning',
+                        null,
+                        () => UI.showView('dashboard'),
+                        true
+                    );
+                    return;
+                }
+
+                // LOCK STOCK UNTIL 25K NET WORTH
+                if (view === 'market' && GameState.netWorth < 25000) {
+                    UI.showView(view); // Show background
+                    showGameAlert(
+                        '🔒 Acceso Restringido.<br>Necesitas un patrimonio de 25.000€ para operar en Bolsa.',
+                        'warning',
+                        null,
+                        () => UI.showView('dashboard'),
+                        true
+                    );
+                    return;
+                }
+
                 UI.showView(view);
 
                 // Sync Bottom Nav
