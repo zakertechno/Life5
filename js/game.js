@@ -2954,16 +2954,26 @@ const TutorialSystem = {
 
         GameState.tutorialStep = 3;
 
-        // Show explanation modal - user can interact freely after closing it
-        // The onGigAccepted() will be called when they accept any gig
-        showGameAlert(
+        // Show explanation modal with blocking logic
+        UI.showModal(
+            '🎒 Trabajos Temporales',
             'Sin titulación, solo tienes acceso a <strong>trabajos temporales</strong>.<br><br>' +
             '💡 <strong>Consejo:</strong> Acepta uno de los trabajos disponibles para ganar dinero mientras estudias.<br><br>' +
             '🎓 Cuando termines tu formación, desbloquearás <strong>empleos fijos</strong> con mejores salarios.',
-            'info',
-            '🎒 Trabajos Temporales'
+            [{
+                text: 'Entendido',
+                style: 'primary',
+                fn: () => {
+                    // BLOCK everything except the gig section
+                    this.showOverlay();
+                    this.addHighlight('#temp-jobs-section');
+
+                    // Optional: Highlight the scroll container if needed, but usually specific section is enough.
+                    // User must apply to a gig. onGigAccepted handles the rest.
+                }
+            }],
+            true // isHTML
         );
-        // No overlay - user can click on gigs freely after closing the modal
     },
 
     // Called when player accepts any gig
@@ -6627,6 +6637,7 @@ const UI = {
                 // --- SECTION: GIGS ---
                 const gigSection = document.createElement('div');
                 gigSection.className = 'market-section';
+                gigSection.id = 'temp-jobs-section';
                 gigSection.style.marginBottom = '40px';
                 gigSection.innerHTML = `<h3 class="section-title" style="color:#facc15;">⚡ Trabajo Temporal</h3>`;
                 const gigGrid = document.createElement('div');
