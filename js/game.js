@@ -3025,14 +3025,38 @@ const TutorialSystem = {
 
         GameState.tutorialStep = 3;
 
-        // Show explanation modal with blocking logic
+        // Show premium styled explanation modal
+        const themeColor = '#facc15'; // Yellow for temp work
+        const icon = '🎒';
+
+        const tutorialMsg = `
+            <div style="text-align: center; margin-bottom: 20px;">
+                <div style="font-size: 4rem; margin-bottom: 10px; filter: drop-shadow(0 0 15px ${themeColor}66);">${icon}</div>
+                <h3 style="color: ${themeColor}; margin: 0; font-size: 1.5rem; text-shadow: 0 0 10px ${themeColor}4d; font-weight: 800;">Trabajos Temporales</h3>
+            </div>
+
+            <div style="background: linear-gradient(145deg, rgba(30, 41, 59, 0.8), rgba(15, 23, 42, 0.6)); border: 1px solid ${themeColor}4d; border-radius: 16px; padding: 20px; margin-bottom: 20px;">
+                <p style="color: #e2e8f0; margin: 0 0 15px 0; font-size: 0.95rem; line-height: 1.6; text-align: center;">
+                    Sin titulación, solo tienes acceso a <strong style="color: ${themeColor};">trabajos temporales</strong>.
+                </p>
+                
+                <div style="background: rgba(74, 222, 128, 0.1); border: 1px solid rgba(74, 222, 128, 0.3); border-radius: 12px; padding: 12px; margin-bottom: 15px;">
+                    <div style="color: #4ade80; font-weight: 700; font-size: 0.85rem; margin-bottom: 5px;">💡 Consejo</div>
+                    <div style="color: #cbd5e1; font-size: 0.9rem;">Acepta uno de los trabajos disponibles para ganar dinero mientras estudias.</div>
+                </div>
+                
+                <div style="background: rgba(129, 140, 248, 0.1); border: 1px solid rgba(129, 140, 248, 0.3); border-radius: 12px; padding: 12px;">
+                    <div style="color: #818cf8; font-weight: 700; font-size: 0.85rem; margin-bottom: 5px;">🎓 A futuro</div>
+                    <div style="color: #cbd5e1; font-size: 0.9rem;">Cuando termines tu formación, desbloquearás <strong>empleos fijos</strong> con mejores salarios.</div>
+                </div>
+            </div>
+        `;
+
         UI.showModal(
-            '🎒 Trabajos Temporales',
-            'Sin titulación, solo tienes acceso a <strong>trabajos temporales</strong>.<br><br>' +
-            '💡 <strong>Consejo:</strong> Acepta uno de los trabajos disponibles para ganar dinero mientras estudias.<br><br>' +
-            '🎓 Cuando termines tu formación, desbloquearás <strong>empleos fijos</strong> con mejores salarios.',
+            ' ',
+            tutorialMsg,
             [{
-                text: 'Entendido',
+                text: '✅ Entendido',
                 style: 'primary',
                 fn: () => {
                     // BLOCK everything except the gig section
@@ -9400,9 +9424,12 @@ try {
                         }
                         .profile-title {
                             color: #38bdf8;
-                            margin: 0 0 15px 0;
-                            font-size: 1.5rem;
-                            font-weight: 700;
+                            margin: 0 0 20px 0;
+                            font-size: 1.6rem;
+                            font-weight: 800;
+                            text-shadow: 0 0 20px rgba(56, 189, 248, 0.4);
+                            letter-spacing: 0.5px;
+                            white-space: nowrap;
                         }
                         .profile-features {
                             background: rgba(56, 189, 248, 0.1);
@@ -9503,12 +9530,24 @@ try {
                         <h2 class="profile-title">¡Bienvenido a tu nueva vida!</h2>
                         
                         <div class="profile-features">
-                            <p>
-                                📚 <strong>Estudia</strong> para mejorar tus habilidades<br>
-                                💼 <strong>Trabaja</strong> y asciende en tu carrera<br>
-                                📈 <strong>Invierte</strong> en bolsa e inmuebles<br>
-                                🏢 <strong>Crea tu negocio</strong> y llega a la cima
-                            </p>
+                            <div style="display: grid; gap: 10px;">
+                                <div style="display: flex; align-items: center; gap: 12px; background: rgba(129, 140, 248, 0.1); border: 1px solid rgba(129, 140, 248, 0.3); border-radius: 10px; padding: 10px 14px;">
+                                    <span style="font-size: 1.5rem;">📚</span>
+                                    <span style="color: #e2e8f0; font-size: 0.9rem;"><strong style="color: #818cf8;">Estudia</strong> para mejorar tus habilidades</span>
+                                </div>
+                                <div style="display: flex; align-items: center; gap: 12px; background: rgba(74, 222, 128, 0.1); border: 1px solid rgba(74, 222, 128, 0.3); border-radius: 10px; padding: 10px 14px;">
+                                    <span style="font-size: 1.5rem;">💼</span>
+                                    <span style="color: #e2e8f0; font-size: 0.9rem;"><strong style="color: #4ade80;">Trabaja</strong> y asciende en tu carrera</span>
+                                </div>
+                                <div style="display: flex; align-items: center; gap: 12px; background: rgba(250, 204, 21, 0.1); border: 1px solid rgba(250, 204, 21, 0.3); border-radius: 10px; padding: 10px 14px;">
+                                    <span style="font-size: 1.5rem;">📈</span>
+                                    <span style="color: #e2e8f0; font-size: 0.9rem;"><strong style="color: #facc15;">Invierte</strong> en bolsa e inmuebles</span>
+                                </div>
+                                <div style="display: flex; align-items: center; gap: 12px; background: rgba(251, 191, 36, 0.1); border: 1px solid rgba(251, 191, 36, 0.3); border-radius: 10px; padding: 10px 14px;">
+                                    <span style="font-size: 1.5rem;">🏢</span>
+                                    <span style="color: #e2e8f0; font-size: 0.9rem;"><strong style="color: #fbbf24;">Crea tu negocio</strong> y llega a la cima</span>
+                                </div>
+                            </div>
                         </div>
                         
                         <div class="profile-input-group">
