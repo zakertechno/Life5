@@ -246,6 +246,8 @@ const GameState = {
     // Story & Unlocks
     totalMonths: 0,
     expensesUnlocked: false,
+    stockUnlocked: false, // Unlocked when netWorth >= 30000
+    bankUnlocked: false, // Unlocked when Year 3, Month 6
     // Cache for performance optimization
     _netWorthCache: null,
     _netWorthCacheTurn: -1,
@@ -3037,8 +3039,11 @@ const TutorialSystem = {
                     this.showOverlay();
                     this.addHighlight('#temp-jobs-section');
 
-                    // Optional: Highlight the scroll container if needed, but usually specific section is enough.
-                    // User must apply to a gig. onGigAccepted handles the rest.
+                    // Scroll to the temp jobs section
+                    const tempJobsSection = document.querySelector('#temp-jobs-section');
+                    if (tempJobsSection) {
+                        tempJobsSection.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    }
                 }
             }],
             true // isHTML
@@ -3623,6 +3628,164 @@ const TutorialSystem = {
                 }
             );
         }, 500);
+    },
+
+    // STOCK MARKET UNLOCK TUTORIAL (Triggered when netWorth >= 25000 for first time)
+    stepStock_Unlock() {
+        const themeColor = '#4ade80'; // Green
+        const icon = '📈';
+
+        let unlockMsg = `
+            <div style="text-align: center; margin-bottom: 20px;">
+                <div style="font-size: 4rem; margin-bottom: 10px; filter: drop-shadow(0 0 15px ${themeColor}66); animation: bounceIn 0.6s cubic-bezier(0.68, -0.55, 0.265, 1.55);">${icon}</div>
+                <h3 style="color: ${themeColor}; margin: 0; font-size: 1.6rem; text-shadow: 0 0 10px ${themeColor}4d; font-weight: 800; letter-spacing: 1px;">¡BOLSA DESBLOQUEADA!</h3>
+            </div>
+
+            <div style="background: linear-gradient(145deg, rgba(30, 41, 59, 0.8), rgba(15, 23, 42, 0.6)); border: 1px solid ${themeColor}4d; border-radius: 16px; padding: 25px; text-align: center; margin-bottom: 25px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);">
+                <div style="font-size: 0.85rem; color: #94a3b8; text-transform: uppercase; letter-spacing: 1.5px; margin-bottom: 10px;">Hito Alcanzado</div>
+                <div style="font-size: 1.4rem; font-weight: 700; color: #f8fafc; margin-bottom: 15px;">Patrimonio de 30.000€</div>
+                
+                <div style="display: inline-block; background: ${themeColor}26; border: 1px solid ${themeColor}4d; padding: 10px 20px; border-radius: 30px;">
+                    <span style="color: ${themeColor}; font-weight: 700; font-size: 1.1rem;">Acceso a Mercado de Valores</span>
+                </div>
+            </div>
+
+            <p style="text-align: center; color: #cbd5e1; font-size: 1rem; line-height: 1.6; margin: 0; padding: 0 10px;">
+                ¡Enhorabuena! Has acumulado suficiente capital para invertir en bolsa.<br>
+                Vamos a ver cómo funciona.
+            </p>
+        `;
+
+        UI.showModal(
+            ' ',
+            unlockMsg,
+            [{
+                text: '📈 Ir a Bolsa',
+                style: 'success',
+                fn: () => {
+                    UI.showView('market');
+
+                    // Ensure no lingering overlay from previous tutorial steps
+                    TutorialSystem.hideOverlay();
+                    TutorialSystem.removeHighlights();
+
+                    // Start Stock Tutorial with simple sequential modals
+                    setTimeout(() => {
+                        // Step 1: Chart explanation
+                        showGameAlert(
+                            '📈 <strong>Mercado de Valores</strong><br><br>Aquí puedes invertir en acciones de empresas reales y ficticias.<br><br>El precio de cada acción fluctúa con el tiempo. ¡Elige bien!',
+                            'info',
+                            '📈 Tutorial Bolsa (1/3)',
+                            () => {
+                                // Step 2: Stock List
+                                setTimeout(() => {
+                                    showGameAlert(
+                                        '📋 <strong>Lista de Acciones</strong><br><br>En el apartado Cotizaciones tienes todas las acciones disponibles.<br><br>Selecciona una para ver su gráfico y poder comprarla.',
+                                        'info',
+                                        '📈 Tutorial Bolsa (2/3)',
+                                        () => {
+                                            // Step 3: Buy/Sell
+                                            setTimeout(() => {
+                                                showGameAlert(
+                                                    '📊 <strong>Mis Posiciones</strong><br><br>Abajo en el apartado Mis Posiciones verás las acciones que tienes compradas, el precio medio de compra y la ganancia/pérdida actual.<br><br>💡 <em>Consejo: Mantén un ojo en tus posiciones para decidir cuándo vender.</em>',
+                                                    'success',
+                                                    '📈 Tutorial Bolsa (3/3)',
+                                                    () => {
+                                                        UI.showToast('📈 Tutorial Bolsa', '¡Ya sabes lo básico! Buena suerte invirtiendo.', 'success');
+                                                    },
+                                                    true
+                                                );
+                                            }, 200);
+                                        },
+                                        true
+                                    );
+                                }, 200);
+                            },
+                            true
+                        );
+                    }, 500);
+                }
+            }], true
+        );
+    },
+
+    // BANK UNLOCK TUTORIAL (Triggered when Year 3, Month 6)
+    stepBank_Unlock() {
+        const themeColor = '#3b82f6'; // Blue
+        const icon = '🏦';
+
+        let unlockMsg = `
+            <div style="text-align: center; margin-bottom: 20px;">
+                <div style="font-size: 4rem; margin-bottom: 10px; filter: drop-shadow(0 0 15px ${themeColor}66); animation: bounceIn 0.6s cubic-bezier(0.68, -0.55, 0.265, 1.55);">${icon}</div>
+                <h3 style="color: ${themeColor}; margin: 0; font-size: 1.6rem; text-shadow: 0 0 10px ${themeColor}4d; font-weight: 800; letter-spacing: 1px;">¡BANCO DESBLOQUEADO!</h3>
+            </div>
+
+            <div style="background: linear-gradient(145deg, rgba(30, 41, 59, 0.8), rgba(15, 23, 42, 0.6)); border: 1px solid ${themeColor}4d; border-radius: 16px; padding: 25px; text-align: center; margin-bottom: 25px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);">
+                <div style="font-size: 0.85rem; color: #94a3b8; text-transform: uppercase; letter-spacing: 1.5px; margin-bottom: 10px;">Nueva Funcionalidad</div>
+                <div style="font-size: 1.4rem; font-weight: 700; color: #f8fafc; margin-bottom: 15px;">Acceso a Servicios Bancarios</div>
+                
+                <div style="display: inline-block; background: ${themeColor}26; border: 1px solid ${themeColor}4d; padding: 10px 20px; border-radius: 30px;">
+                    <span style="color: ${themeColor}; font-weight: 700; font-size: 1.1rem;">Préstamos y Financiación</span>
+                </div>
+            </div>
+
+            <p style="text-align: center; color: #cbd5e1; font-size: 1rem; line-height: 1.6; margin: 0; padding: 0 10px;">
+                ¡Ya puedes solicitar préstamos!<br>
+                Vamos a ver cómo funciona.
+            </p>
+        `;
+
+        UI.showModal(
+            ' ',
+            unlockMsg,
+            [{
+                text: '🏦 Ir al Banco',
+                style: 'success',
+                fn: () => {
+                    UI.showView('bank');
+
+                    // Ensure no lingering overlay
+                    TutorialSystem.hideOverlay();
+                    TutorialSystem.removeHighlights();
+
+                    // Start Bank Tutorial with sequential modals
+                    setTimeout(() => {
+                        // Step 1: Bank intro
+                        showGameAlert(
+                            '🏦 <strong>Servicios Bancarios</strong><br><br>Aquí puedes solicitar préstamos personales para financiar tus inversiones.<br><br>El banco evaluará tu perfil antes de concederte un crédito.',
+                            'info',
+                            '🏦 Tutorial Banco (1/3)',
+                            () => {
+                                // Step 2: Credit limit
+                                setTimeout(() => {
+                                    showGameAlert(
+                                        '💳 <strong>Límite de Crédito</strong><br><br>Tu límite de crédito depende de tu salario mensual.<br><br>Cuanto mayor sea tu sueldo, más dinero podrás pedir prestado.',
+                                        'info',
+                                        '🏦 Tutorial Banco (2/3)',
+                                        () => {
+                                            // Step 3: Encourage real estate
+                                            setTimeout(() => {
+                                                showGameAlert(
+                                                    '🏠 <strong>¡Invierte en Inmuebles!</strong><br><br>Los préstamos son perfectos para comprar propiedades inmobiliarias que generen rentas mensuales.<br><br>💡 <em>Consejo: Un buen inmueble puede pagarse solo con los alquileres.</em>',
+                                                    'success',
+                                                    '🏦 Tutorial Banco (3/3)',
+                                                    () => {
+                                                        UI.showToast('🏦 Tutorial Banco', '¡Ya conoces el banco! Considera pedir un préstamo.', 'success');
+                                                    },
+                                                    true
+                                                );
+                                            }, 200);
+                                        },
+                                        true
+                                    );
+                                }, 200);
+                            },
+                            true
+                        );
+                    }, 500);
+                }
+            }], true
+        );
     },
 
     // Check if tutorial should start
@@ -7063,7 +7226,7 @@ const UI = {
                 contentContainer.appendChild(marketSection);
 
                 // 4. Entrepreneur Footer - Premium Design
-                const enoughNetWorth = GameState.netWorth >= 25000;
+                const enoughNetWorth = GameState.netWorth >= 50000;
                 const entrepreneurSection = document.createElement('div');
                 entrepreneurSection.className = 'entrepreneur-footer';
                 entrepreneurSection.innerHTML = `
@@ -7074,7 +7237,7 @@ const UI = {
                                     <div style="font-size: 2.5rem; margin-bottom: 10px; filter: drop-shadow(0 0 15px rgba(251, 191, 36, 0.5));">🚀</div>
                                     <h3 style="margin: 0 0 8px 0; font-size: 1.3rem; color: #fbbf24; font-weight: 800;">¿Listo para dar el gran salto?</h3>
                                     <p style="color: #94a3b8; margin: 0; font-size: 0.9rem;">Deja tu empleo y construye tu propio legado empresarial.</p>
-                                    ${!enoughNetWorth ? `<p style="color: #f87171; margin-top: 8px; font-weight: bold; font-size: 0.9rem;">⚠️ Requisito: 25.000€ Patrimonio (Tienes: ${formatCurrency(GameState.netWorth)})</p>` : ''}
+                                    ${!enoughNetWorth ? `<p style="color: #f87171; margin-top: 8px; font-weight: bold; font-size: 0.9rem;">⚠️ Requisito: 50.000€ Patrimonio (Tienes: ${formatCurrency(GameState.netWorth)})</p>` : ''}
                                 </div>
                                 <button id="btn-found-company" ${!enoughNetWorth ? 'disabled' : ''} style="background: ${enoughNetWorth ? 'linear-gradient(135deg, #fbbf24, #f59e0b)' : '#334155'}; color: ${enoughNetWorth ? '#0f172a' : '#94a3b8'}; border: none; padding: 16px 40px; border-radius: 12px; font-weight: 900; font-size: 1rem; cursor: ${enoughNetWorth ? 'pointer' : 'not-allowed'}; text-transform: uppercase; letter-spacing: 1px; box-shadow: ${enoughNetWorth ? '0 4px 0 #b45309, 0 8px 20px rgba(251, 191, 36, 0.3)' : 'none'}; transition: all 0.15s; opacity: ${enoughNetWorth ? '1' : '0.6'};">
                                     ${enoughNetWorth ? '🏢 FUNDAR EMPRESA' : '🔒 PATRIMONIO INSUFICIENTE'}
@@ -7086,7 +7249,7 @@ const UI = {
                 if (enoughNetWorth) {
                     entrepreneurSection.querySelector('#btn-found-company').onclick = () => UI.openCompanyWizard();
                 } else {
-                    entrepreneurSection.querySelector('#btn-found-company').onclick = () => showGameAlert('Necesitas un patrimonio neto de al menos 25.000€ para asumir el riesgo de fundar una empresa.', 'warning', '🔒 Requisito no cumplido');
+                    entrepreneurSection.querySelector('#btn-found-company').onclick = () => showGameAlert('Necesitas un patrimonio neto de al menos 50.000€ para asumir el riesgo de fundar una empresa.', 'warning', '🔒 Requisito no cumplido');
                 }
                 contentContainer.appendChild(entrepreneurSection);
             } else {
@@ -8762,6 +8925,37 @@ function nextTurn() {
         }
     });
 
+    // STOCK MARKET UNLOCK (25K NET WORTH)
+    // Initialize for old saves that don't have this property
+    if (GameState.stockUnlocked === undefined) {
+        GameState.stockUnlocked = false;
+    }
+
+    console.log('DEBUG Stock Unlock Check:', { nw, stockUnlocked: GameState.stockUnlocked, shouldTrigger: nw >= 30000 && !GameState.stockUnlocked });
+
+    if (nw >= 30000 && !GameState.stockUnlocked) {
+        console.log('DEBUG: Triggering Stock Unlock!');
+        GameState.stockUnlocked = true;
+        // Trigger celebration and tutorial after a short delay
+        setTimeout(() => {
+            TutorialSystem.stepStock_Unlock();
+        }, 500);
+    }
+
+    // BANK UNLOCK (Year 3, Month 6)
+    // Initialize for old saves that don't have this property
+    if (GameState.bankUnlocked === undefined) {
+        GameState.bankUnlocked = false;
+    }
+
+    if (!GameState.bankUnlocked && GameState.year >= 3 && GameState.month >= 6) {
+        GameState.bankUnlocked = true;
+        // Trigger Bank tutorial after a short delay
+        setTimeout(() => {
+            TutorialSystem.stepBank_Unlock();
+        }, 600);
+    }
+
     let totalDebt = 0;
     GameState.loans.forEach(l => totalDebt += l.remainingBalance);
     let assetsOnly = nw + totalDebt; // Roughly
@@ -9008,8 +9202,8 @@ try {
                 const view = btn.dataset.view;
                 console.log('DEBUG: Bottom Nav Clicked', view);
 
-                // LOCK BANK UNTIL Y3 M6
-                if (view === 'bank' && (GameState.year < 3 || (GameState.year === 3 && GameState.month < 6))) {
+                // LOCK BANK UNTIL UNLOCKED
+                if (view === 'bank' && !GameState.bankUnlocked) {
                     UI.showView(view); // Show background
                     showGameAlert(
                         '🔒 Acceso Restringido.<br>Disponible próximamente tras avanzar en el juego.',
@@ -9021,11 +9215,11 @@ try {
                     return;
                 }
 
-                // LOCK STOCK UNTIL 25K NET WORTH
-                if (view === 'market' && GameState.netWorth < 25000) {
+                // LOCK STOCK UNTIL UNLOCKED VIA 25K MILESTONE
+                if (view === 'market' && !GameState.stockUnlocked) {
                     UI.showView(view); // Show background
                     showGameAlert(
-                        '🔒 Acceso Restringido.<br>Necesitas un patrimonio de 25.000€ para operar en Bolsa.',
+                        '🔒 Acceso Restringido.<br>Necesitas un patrimonio de 30.000€ para operar en Bolsa.',
                         'warning',
                         null,
                         () => UI.showView('dashboard'),
@@ -9044,8 +9238,8 @@ try {
             btn.onclick = () => {
                 const view = btn.dataset.view;
 
-                // LOCK BANK UNTIL Y3 M6
-                if (view === 'bank' && (GameState.year < 3 || (GameState.year === 3 && GameState.month < 6))) {
+                // LOCK BANK UNTIL UNLOCKED
+                if (view === 'bank' && !GameState.bankUnlocked) {
                     UI.showView(view); // Show background
                     showGameAlert(
                         '🔒 Acceso Restringido.<br>Disponible próximamente tras avanzar en el juego.',
@@ -9057,11 +9251,11 @@ try {
                     return;
                 }
 
-                // LOCK STOCK UNTIL 25K NET WORTH
-                if (view === 'market' && GameState.netWorth < 25000) {
+                // LOCK STOCK UNTIL UNLOCKED VIA 25K MILESTONE
+                if (view === 'market' && !GameState.stockUnlocked) {
                     UI.showView(view); // Show background
                     showGameAlert(
-                        '🔒 Acceso Restringido.<br>Necesitas un patrimonio de 25.000€ para operar en Bolsa.',
+                        '🔒 Acceso Restringido.<br>Necesitas un patrimonio de 30.000€ para operar en Bolsa.',
                         'warning',
                         null,
                         () => UI.showView('dashboard'),
