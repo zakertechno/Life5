@@ -3446,29 +3446,48 @@ const TutorialSystem = {
     continueToMonthlyFlow() {
         this.showOverlay();
         setTimeout(() => {
-            const mFlow = document.querySelector('.metric-card.monthly-flow');
-            if (mFlow) this.addHighlight('.metric-card.monthly-flow');
+            // 1. Cash Flow (Order requested: Cash -> Monthly Flow)
+            const cash = document.querySelector('.metric-card.cash');
+            if (cash) this.addHighlight('.metric-card.cash');
 
             this.showTooltip(
-                '.metric-card.monthly-flow',
-                '📉 Flujo Mensual',
-                'Es la diferencia entre tus ingresos y gastos. Mantenlo positivo para acumular riqueza cada mes.',
+                '.metric-card.cash',
+                '💵 Caja (Efectivo)',
+                'El dinero líquido que tienes para gastar o invertir. ¡Si llega a cero, game over!',
                 'Siguiente',
                 () => {
                     this.removeHighlights();
                     this.hideTooltip();
 
-                    // Final message
+                    // 2. Monthly Flow
                     setTimeout(() => {
-                        showGameAlert(
-                            '🎉 <strong>¡Tutorial Finalizado!</strong><br><br>' +
-                            'Ya conoces lo básico. Trabaja, invierte y hazte millonario.<br><br>' +
-                            'Suerte en la vida real...',
-                            'success',
-                            '🎓 Graduado'
+                        const mFlow = document.querySelector('.metric-card.monthly-flow');
+                        if (mFlow) this.addHighlight('.metric-card.monthly-flow');
+
+                        this.showTooltip(
+                            '.metric-card.monthly-flow',
+                            '📉 Flujo Mensual',
+                            'Es la diferencia entre tus ingresos y gastos. Mantenlo positivo para acumular riqueza cada mes.',
+                            'Entendido',
+                            () => {
+                                this.removeHighlights();
+                                this.hideTooltip();
+                                this.hideOverlay(); // Remove blocking
+
+                                // Final message
+                                setTimeout(() => {
+                                    showGameAlert(
+                                        '🎉 <strong>¡Tutorial Finalizado!</strong><br><br>' +
+                                        'Ya conoces lo básico. Trabaja, invierte y hazte millonario.<br><br>' +
+                                        'Suerte en la vida real...',
+                                        'success',
+                                        '🎓 Graduado'
+                                    );
+                                    GameState.tutorialFlags.tutorialComplete = true;
+                                    PersistenceModule.saveGame();
+                                }, 500);
+                            }
                         );
-                        GameState.tutorialFlags.tutorialComplete = true;
-                        PersistenceModule.saveGame();
                     }, 500);
                 }
             );
