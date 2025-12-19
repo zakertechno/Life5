@@ -928,6 +928,7 @@ const Portfolio = {
 const Bank = {
     INTEREST_RATES: {
         personal: 0.12,
+        business: 0.12,
         mortgage: 0.04
     },
     getMaxLoanAmount() {
@@ -944,8 +945,8 @@ const Bank = {
                 avgRev = sum / last6.length;
             }
 
-            const annualRev = avgRev * 12;
-            return Math.floor(openCost + (annualRev * 2));
+            const semiannualRev = avgRev * 6;
+            return Math.floor(openCost + (semiannualRev * 2));
         }
 
         // Personal Loan Logic
@@ -4568,7 +4569,16 @@ const UI = {
         // Update Active State Visuals
         document.querySelectorAll('.btn-seg').forEach(btn => {
             btn.classList.remove('active');
-            if (parseInt(btn.dataset.tf) === months) btn.classList.add('active');
+            // Reset styles
+            btn.style.background = 'transparent';
+            btn.style.color = '#94a3b8';
+
+            if (parseInt(btn.dataset.tf) === months) {
+                btn.classList.add('active');
+                // Apply active styles
+                btn.style.background = 'linear-gradient(135deg, #38bdf8, #0ea5e9)';
+                btn.style.color = 'white';
+            }
         });
     },
 
@@ -4619,6 +4629,14 @@ const UI = {
             totalMonthlyPayment += l.monthlyPayment;
         });
 
+
+        // Calculate eligible debt for limit (excluding mortgages)
+        const currentDebtForLimit = loans
+            .filter(l => !l.type.includes('Hipotecario'))
+            .reduce((sum, l) => sum + l.remainingBalance, 0);
+
+        const remainingLimit = Math.max(0, limit - currentDebtForLimit);
+
         // RENDER
         container.innerHTML = `
                     <div class="dashboard-container">
@@ -4641,8 +4659,8 @@ const UI = {
                             </div>
                             <div class="bank-stat-card metric-card cash" style="flex:1; min-width: 140px; background: linear-gradient(145deg, rgba(74, 222, 128, 0.1), rgba(34, 197, 94, 0.05)); border: 1px solid rgba(74, 222, 128, 0.3); border-radius: 16px; padding: 20px; text-align: center;">
                                 <div style="font-size: 2rem; margin-bottom: 8px; filter: drop-shadow(0 0 10px rgba(74, 222, 128, 0.4));">💳</div>
-                                <span style="display:block; color:#94a3b8; font-size:0.7rem; text-transform: uppercase; letter-spacing: 1px; margin-bottom:8px;">Límite Crédito</span>
-                                <span style="font-size:1.3rem; font-weight:800; color:#4ade80; text-shadow: 0 0 15px rgba(74, 222, 128, 0.3);">${formatCurrency(limit)}</span>
+                                <span style="display:block; color:#94a3b8; font-size:0.7rem; text-transform: uppercase; letter-spacing: 1px; margin-bottom:8px;">Crédito Disponible</span>
+                                <span style="font-size:1.3rem; font-weight:800; color:#4ade80; text-shadow: 0 0 15px rgba(74, 222, 128, 0.3);">${formatCurrency(remainingLimit)}</span>
                             </div>
                         </div>
 
@@ -8125,7 +8143,7 @@ const UI = {
 
                                     <div class="strat-card highlight">
                                         <h4 class="staff-role-title" style="color:#38bdf8;">📈 Análisis de Demanda</h4>
-                                        <div class="analysis-box" style="display:grid; grid-template-columns: 1fr 1fr; gap:15px;">
+                                        <div class="analysis-box" style="display:grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap:15px;">
                                             <div class="data-row"><span>Base:</span> <strong>${comp.base}</strong></div>
                                             <div class="data-row"><span>Tráfico:</span> <strong>x${comp.traffic.toFixed(2)}</strong></div>
                                             <div class="data-row"><span>Marketing:</span> <strong>x${comp.marketing.toFixed(2)}</strong></div>
@@ -8174,7 +8192,7 @@ const UI = {
                                 <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px;">
                                     <div style="background: rgba(15, 23, 42, 0.5); border-radius: 12px; padding: 15px;">
                                         <label style="display:block; margin-bottom:8px; color:#4ade80; font-weight: 600; font-size:0.9rem;">📤 Retirar a cuenta personal</label>
-                                        <div style="display:flex; gap:10px;">
+                                        <div style="display:flex; flex-wrap:wrap; gap:10px;">
                                             <input type="number" id="co-trans-amount" placeholder="Cantidad €" style="
                                                 flex: 1;
                                                 background: #0f172a;
@@ -8197,7 +8215,7 @@ const UI = {
                                     </div>
                                     <div style="background: rgba(15, 23, 42, 0.5); border-radius: 12px; padding: 15px;">
                                         <label style="display:block; margin-bottom:8px; color:#a855f7; font-weight: 600; font-size:0.9rem;">📥 Inyectar desde cuenta personal</label>
-                                        <div style="display:flex; gap:10px;">
+                                        <div style="display:flex; flex-wrap:wrap; gap:10px;">
                                             <input type="number" id="co-dep-amount" placeholder="Cantidad €" style="
                                                 flex: 1;
                                                 background: #0f172a;
@@ -8242,9 +8260,9 @@ const UI = {
                                         <p style="margin: 4px 0 0 0; color: #64748b; font-size: 0.8rem;">Tu sueldo mensual (cubre gastos personales)</p>
                                     </div>
                                 </div>
-                                <div style="display:flex; gap:10px; align-items: center;">
+                                <div style="display:flex; flex-wrap:wrap; gap:10px; align-items: center;">
                                     <input type="number" id="co-ceo-salary" value="${co.ceoSalary || 0}" style="
-                                        width: 150px;
+                                        flex: 1; min-width: 120px;
                                         background: #0f172a;
                                         border: 1px solid #334155;
                                         padding: 12px;
