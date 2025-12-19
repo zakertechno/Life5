@@ -1552,7 +1552,7 @@ const EducationModule = {
                     window.scrollTo(0, 0);
                 }
             }
-        ]);
+        ], true);
 
         UI.updateEducation(this);
         UI.updateJob(JobSystem);
@@ -2991,7 +2991,7 @@ const TutorialSystem = {
                 </p>
             `;
 
-            UI.showModal(' ', welcomeMsg, [{ text: '🚀 ¡Entendido!', style: 'success', fn: null }]);
+            UI.showModal(' ', welcomeMsg, [{ text: '🚀 ¡Entendido!', style: 'success', fn: null }], true);
             return true; // Indicates tutorial modal handled the event
         }
         return false;
@@ -3064,7 +3064,7 @@ const TutorialSystem = {
         showGameAlert(
             'Ahora que tienes tu título, puedes acceder a <strong>empleos fijos</strong>.<br><br>' +
             '💼 Los empleos fijos pagan mejor y te permiten <strong>ascender</strong>.<br><br>' +
-            '👆 Elige un empleo de la sección "Empleos Disponibles" para continuar.',
+            '👆 Elige un empleo de la sección "Mercado Laboral" para continuar.',
             'success',
             '🎉 ¡Empleos Desbloqueados!'
         );
@@ -3130,7 +3130,7 @@ const TutorialSystem = {
                     GameState.tutorialFlags.tutorialComplete = true;
                     PersistenceModule.saveGame();
                 }
-            }]
+            }], true
         );
     },
 
@@ -3333,85 +3333,116 @@ const TutorialSystem = {
                 text: '🚀 Ver mis Finanzas',
                 style: 'success',
                 fn: () => {
-                    // Force navigation to Dashboard/Summary
-                    document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
-                    document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
-                    document.getElementById('dashboard-view').classList.add('active');
-                    document.querySelector(`button[data-view="dashboard"]`).classList.add('active');
-
-                    // Update Dashboard
-                    UI.updateDashboard();
-
-                    // Highlight Sections
+                    // 1. Force User to find the Dashboard Button manually
+                    // Highlight ONLY the dashboard button
                     this.showOverlay();
+                    this.addHighlight('button[data-view="dashboard"]');
 
-                    // Sequence of highlights
-                    setTimeout(() => {
-                        // Highlight Net Worth
-                        const netWorth = document.querySelector('.metric-card.net-worth');
-                        if (netWorth) this.addHighlight('.metric-card.net-worth');
+                    // Add Tooltip explaining what to do
+                    const dashBtn = document.querySelector('button[data-view="dashboard"]');
+                    if (dashBtn) {
+                        const rect = dashBtn.getBoundingClientRect();
 
-                        this.showTooltip(
-                            '.metric-card.net-worth',
-                            '💰 Patrimonio Neto',
-                            'Tu valor total (Dinero + Activos - Deudas). Obviamente, quieres que esto suba hasta la luna.',
-                            'Siguiente',
-                            () => {
-                                this.removeHighlights();
-                                // Next: Cash Flow
+                        // Create specific tooltip for this action
+                        const tip = document.createElement('div');
+                        tip.className = 'tutorial-tooltip';
+                        tip.innerHTML = `
+                            <div style="font-weight:700; margin-bottom:5px;">🏠 Tu Centro de Mando</div>
+                            <div>Pulsa el icono de CASA/USUARIO para ver el resumen de tus finanzas.</div>
+                            <div style="font-size:0.8rem; margin-top:5px; opacity:0.8;">(Es el único botón habilitado ahora mismo)</div>
+                            <div class="tooltip-arrow"></div>
+                        `;
+                        // Position above the button
+                        tip.style.position = 'fixed';
+                        tip.style.left = (rect.left + rect.width / 2 - 120) + 'px';
+                        tip.style.top = (rect.top - 110) + 'px';
+                        tip.style.zIndex = '10002';
+                        document.body.appendChild(tip);
+
+                        // ONE-TIME CLICK LISTENER
+                        const continueTutorial = (e) => {
+                            // Verify it's the dashboard button or inside it
+                            if (e.target.closest('button[data-view="dashboard"]')) {
+                                // Cleanup
+                                document.removeEventListener('click', continueTutorial, true); // Use capture to intercept if needed, but here usually bubbling is fine. 
+                                // Actually, since we want to ALLOW the click to propagate to trigger the view change, we shouldn't preventDefault.
+                                // But we need to detect it.
+
+                                tip.remove();
+                                this.removeHighlights(); // Remove highlight of the button
+
+                                // WAIT for view transition (small delay) then start Net Worth sequence
                                 setTimeout(() => {
-                                    const cash = document.querySelector('.metric-card.cash');
-                                    if (cash) this.addHighlight('.metric-card.cash');
+                                    // Make sure we are in dashboard view (the click should have handled it, but just in case)
+                                    // Current game logic handles view switching on click.
+
+                                    // Now start the Net Worth Explanation
+                                    this.showOverlay(); // Show overlay again for the next steps
+
+                                    // Sequence of highlights
+                                    const netWorth = document.querySelector('.metric-card.net-worth');
+                                    if (netWorth) this.addHighlight('.metric-card.net-worth');
 
                                     this.showTooltip(
-                                        '.metric-card.cash',
-                                        '💵 Caja (Efectivo)',
-                                        'El dinero líquido que tienes para gastar o invertir. ¡Si llega a cero, game over!',
-                                        'Entendido',
+                                        '.metric-card.net-worth',
+                                        '💰 Patrimonio Neto',
+                                        'Tu valor total (Dinero + Activos - Deudas). Obviamente, quieres que esto suba hasta la luna.',
+                                        'Siguiente',
                                         () => {
-                                            this.hideOverlay();
-                                            // Next: Monthly Flow (New Step)
-                                            setTimeout(() => {
-                                                const mFlow = document.querySelector('.metric-card.monthly-flow');
-                                                if (mFlow) this.addHighlight('.metric-card.monthly-flow');
-
-                                                this.showTooltip(
-                                                    '.metric-card.monthly-flow',
-                                                    '📉 Flujo Mensual',
-                                                    'Es la diferencia entre tus ingresos y gastos. Mantenlo positivo para acumular riqueza cada mes.',
-                                                    'Siguiente',
-                                                    () => {
-                                                        this.removeHighlights();
-                                                        this.hideTooltip();
-
-                                                        // Final message
-                                                        setTimeout(() => {
-                                                            showGameAlert(
-                                                                '🎉 <strong>¡Tutorial Finalizado!</strong><br><br>' +
-                                                                'Ya conoces lo básico. Trabaja, invierte y hazte millonario.<br><br>' +
-                                                                'Suerte en la vida real...',
-                                                                'success',
-                                                                '🎓 Graduado'
-                                                            );
-                                                            GameState.tutorialFlags.tutorialComplete = true;
-                                                            PersistenceModule.saveGame();
-                                                        }, 500);
-                                                    }
-                                                );
-                                                GameState.tutorialFlags.tutorialComplete = true;
-                                                PersistenceModule.saveGame();
-                                            }, 500);
+                                            this.removeHighlights();
+                                            this.hideTooltip();
+                                            // Proceed to Monthly Flow...
+                                            // (Rest of the logic continues below in the original code, but we need to chain it here)
+                                            this.continueToMonthlyFlow();
                                         }
                                     );
-                                }, 300);
+                                }, 500);
+                            } else {
+                                // Block other clicks? The overlay does that via CSS pointer-events usually, 
+                                // but our removeHighlights() removes the blocking for the highlighted element.
+                                // So only the highlighted element is clickable.
                             }
-                        );
-                    }, 500);
+                        };
 
+                        // Use Capture to ensure we catch it, but allow propagation
+                        document.addEventListener('click', continueTutorial);
+                    }
                 }
-            }],
-            true
+            }], true
         );
+    },
+
+    // Helper to continue the sequence (split for readability)
+    continueToMonthlyFlow() {
+        this.showOverlay();
+        setTimeout(() => {
+            const mFlow = document.querySelector('.metric-card.monthly-flow');
+            if (mFlow) this.addHighlight('.metric-card.monthly-flow');
+
+            this.showTooltip(
+                '.metric-card.monthly-flow',
+                '📉 Flujo Mensual',
+                'Es la diferencia entre tus ingresos y gastos. Mantenlo positivo para acumular riqueza cada mes.',
+                'Siguiente',
+                () => {
+                    this.removeHighlights();
+                    this.hideTooltip();
+
+                    // Final message
+                    setTimeout(() => {
+                        showGameAlert(
+                            '🎉 <strong>¡Tutorial Finalizado!</strong><br><br>' +
+                            'Ya conoces lo básico. Trabaja, invierte y hazte millonario.<br><br>' +
+                            'Suerte en la vida real...',
+                            'success',
+                            '🎓 Graduado'
+                        );
+                        GameState.tutorialFlags.tutorialComplete = true;
+                        PersistenceModule.saveGame();
+                    }, 500);
+                }
+            );
+        }, 500);
     },
 
     // Check if tutorial should start
@@ -4837,7 +4868,7 @@ const UI = {
                         { text: `20 Años (${formatCurrency(calcPmt(20))}/mes)`, style: 'primary', fn: () => buy(id, true, 20) },
                         { text: `30 Años (${formatCurrency(calcPmt(30))}/mes)`, style: 'primary', fn: () => buy(id, true, 30) },
                         { text: 'Cancelar', style: 'secondary', fn: null }
-                    ]);
+                    ], true);
 
                 } else {
                     // Cash Buy
@@ -5166,7 +5197,8 @@ const UI = {
                                         💡 Funda y automatiza tu primera empresa para desbloquear ubicaciones premium.
                                     </p>
                                 </div>`,
-                            [{ text: 'Entendido', style: 'secondary', fn: null }]
+                            [{ text: 'Entendido', style: 'secondary', fn: null }],
+                            true
                         );
                         return;
                     }
@@ -6544,7 +6576,7 @@ const UI = {
                                 </div>
 
                                 <div style="background: linear-gradient(145deg, rgba(30, 41, 59, 0.8), rgba(15, 23, 42, 0.6)); border: 1px solid ${themeColor}4d; border-radius: 16px; padding: 25px; text-align: center; margin-bottom: 25px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);">
-                                    <div style="font-size: 0.85rem; color: #94a3b8; text-transform: uppercase; letter-spacing: 1.5px; margin-bottom: 10px;">Gig Aceptado</div>
+                                    <div style="font-size: 0.85rem; color: #94a3b8; text-transform: uppercase; letter-spacing: 1.5px; margin-bottom: 10px;">Trabajo Temporal</div>
                                     <div style="font-size: 1.6rem; font-weight: 800; color: #f8fafc; margin-bottom: 15px;">${vac.title}</div>
                                     
                                     <div style="display: inline-block; background: ${themeColor}26; border: 1px solid ${themeColor}4d; padding: 10px 20px; border-radius: 30px;">
@@ -6654,7 +6686,7 @@ const UI = {
                             const themeColor = isGig ? '#facc15' : '#0ea5e9'; // Yellow vs Sky Blue
                             const icon = isGig ? '⚡' : '👔';
                             const title = isGig ? '¡TRABAJO TEMPORAL!' : '¡CONTRATO FIRMADO!';
-                            const subTitle = isGig ? 'Gig Aceptado' : 'Nueva Trayectoria Profesional';
+                            const subTitle = isGig ? 'Trabajo Temporal' : 'Nueva Trayectoria Profesional';
 
                             // PREMIUM WELCOME MESSAGE
                             let welcomeMsg = `
