@@ -2356,6 +2356,9 @@ const JobSystem = {
             this.monthsSinceLastRaise += 0.5;
         }
 
+        // Check for available promotion
+        this.checkAvailablePromotion();
+
         // Generar nuevos gigs para el mes siguiente
         this.generateMonthlyGigs();
     },
@@ -2440,6 +2443,7 @@ const JobSystem = {
             return { success: false, message: randomExcuse };
         }
 
+
         // NORMAL PROMOTION LOGIC
         const nextJob = this.getAvailablePromotions();
         if (!nextJob) return { success: false, message: 'No hay ascensos disponibles.' };
@@ -2452,10 +2456,74 @@ const JobSystem = {
             if (!this.checkEducation(nextJob.reqEdu)) return { success: false, message: `Necesitas estudios de tipo: ${nextJob.reqEdu}` };
         }
 
+        // SUCCESSFUL PROMOTION
         GameState.salary = nextJob.salary;
         GameState.jobTitle = nextJob.title;
         this.monthsInCurrentJob = 0;
+
+        // Reset notification flag
+        GameState.promotionNotified = false;
+
         return { success: true, message: `¡Ascendido a ${nextJob.title}! Nuevo salario base: ${nextJob.salary}€` };
+    },
+
+    checkAvailablePromotion() {
+        if (GameState.jobType === 'gig' || GameState.jobType === 'unemployed') return;
+        if (this.currentCareerPath === 'none' || this.currentCareerPath === 'entrepreneur') return;
+
+        // Don't notify if already notified for this level
+        if (GameState.promotionNotified) return;
+
+        const nextJob = this.getAvailablePromotions();
+        if (!nextJob) return;
+
+        // Check requirements
+        const reqMonths = nextJob.reqMonths;
+        const currentMonths = this.monthsInCurrentJob;
+        const isTimeOk = currentMonths >= reqMonths;
+        const isEduOk = !nextJob.reqEdu || this.checkEducation(nextJob.reqEdu);
+
+        if (isTimeOk && isEduOk) {
+            GameState.promotionNotified = true;
+
+            // PREMIUM NOTIFICATION
+            const themeColor = '#8b5cf6'; // Violet/Purple for Career
+            const icon = '🚀';
+
+            let msg = `
+                <div style="text-align: center; margin-bottom: 20px;">
+                    <div style="font-size: 4rem; margin-bottom: 10px; filter: drop-shadow(0 0 15px ${themeColor}66); animation: bounceIn 0.6s cubic-bezier(0.68, -0.55, 0.265, 1.55);">${icon}</div>
+                    <h3 style="color: ${themeColor}; margin: 0; font-size: 1.6rem; text-shadow: 0 0 10px ${themeColor}4d; font-weight: 800; letter-spacing: 1px;">¡ASCENSO DISPONIBLE!</h3>
+                </div>
+
+                <div style="background: linear-gradient(145deg, rgba(30, 41, 59, 0.8), rgba(15, 23, 42, 0.6)); border: 1px solid ${themeColor}4d; border-radius: 16px; padding: 25px; text-align: center; margin-bottom: 25px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);">
+                    <div style="font-size: 0.85rem; color: #94a3b8; text-transform: uppercase; letter-spacing: 1.5px; margin-bottom: 10px;">Siguiente Nivel</div>
+                    <div style="font-size: 1.4rem; font-weight: 700; color: #f8fafc; margin-bottom: 10px;">${nextJob.title}</div>
+                    <div style="font-size: 0.95rem; color: #cbd5e1;">Has cumplido todos los requisitos para ascender.</div>
+                </div>
+
+                <p style="text-align: center; color: #cbd5e1; font-size: 1rem; line-height: 1.6; margin: 0; padding: 0 10px;">
+                    Ve a la sección de <strong>Trabajo</strong> para solicitar tu ascenso y mejorar tu salario.
+                </p>
+            `;
+
+            UI.showModal(
+                ' ',
+                msg,
+                [{
+                    text: '💼 Ir a Trabajo',
+                    style: 'primary',
+                    fn: () => {
+                        const btn = document.querySelector('.b-nav-item[data-view="job"]');
+                        if (btn) btn.click();
+                        // Also for desktop?
+                        const dBtn = document.querySelector('.nav-btn[data-view="job"]');
+                        if (dBtn) dBtn.click();
+                    }
+                }],
+                true
+            );
+        }
     },
 
     checkEducation(req) {
@@ -3070,15 +3138,32 @@ const TutorialSystem = {
     step6_AcceptRealJob() {
         GameState.tutorialStep = 6;
 
-        // Show explanation modal - user can interact freely after closing
+        // Show explanation modal with visual style restored + blocking behavior
         showGameAlert(
             'Ahora que tienes tu título, puedes acceder a <strong>empleos fijos</strong>.<br><br>' +
             '💼 Los empleos fijos pagan mejor y te permiten <strong>ascender</strong>.<br><br>' +
             '👆 Elige un empleo de la sección "Mercado Laboral" para continuar.',
             'success',
-            '🎉 ¡Empleos Desbloqueados!'
+            '🎉 ¡Empleos Desbloqueados!',
+            () => {
+                // BLOCK everything except the market section
+                this.showOverlay();
+                const target = document.querySelector('#regular-jobs-grid');
+                if (target) {
+                    target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    this.addHighlight('#regular-jobs-grid'); // Pass SELECTOR string
+                } else {
+                    // Fallback to market section wrapper if grid not found
+                    const fallback = document.querySelector('.market-section');
+                    if (fallback) {
+                        fallback.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                        this.addHighlight('.market-section');
+                    } else {
+                        this.addHighlight('.company-dashboard-full-view');
+                    }
+                }
+            }
         );
-        // No overlay - user can click on jobs freely after closing the modal
     },
 
     // Called when player accepts a real job (not gig)
@@ -3561,8 +3646,9 @@ const formatPercent = (val) => (val * 100).toFixed(2) + '%';
  * @param {string} message - Message to display (supports HTML)
  * @param {string} type - 'info', 'success', 'warning', 'error' (default: 'info')
  * @param {string} title - Optional title (auto-generated if not provided)
+ * @param {Function} callback - Optional callback
  */
-function showGameAlert(message, type = 'info', title = null) {
+function showGameAlert(message, type = 'info', title = null, callback = null) {
     const config = {
         info: {
             icon: '💬',
@@ -3697,7 +3783,10 @@ function showGameAlert(message, type = 'info', title = null) {
     btn.onmouseleave = () => btn.style.transform = 'translateY(0)';
     btn.onclick = () => {
         overlay.style.animation = 'fadeIn 0.15s ease-out reverse';
-        setTimeout(() => overlay.remove(), 150);
+        setTimeout(() => {
+            overlay.remove();
+            if (callback) callback();
+        }, 150);
     };
 
     // Close on overlay click
@@ -6630,6 +6719,7 @@ const UI = {
 
                 const marketGrid = document.createElement('div');
                 marketGrid.className = 'market-grid';
+                marketGrid.id = 'regular-jobs-grid';
 
                 const vacancyList = JobSys.getAllVacancies().filter(vac => vac.reqMonths === 0);
 
