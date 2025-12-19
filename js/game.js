@@ -3385,7 +3385,32 @@ const TutorialSystem = {
                             tip.style.top = (rect.bottom + 15) + 'px';
                             tip.style.left = '20px';
                             tip.style.maxWidth = '250px'; // Limit width
-                            // Arrow adjustment could be added here if needed
+
+                            // GUIDING ARROW (User request: show arrow if scroll is down)
+                            const upArrow = document.createElement('div');
+                            upArrow.className = 'tutorial-up-arrow';
+                            upArrow.innerHTML = '⬆️ Arriba';
+                            upArrow.style.cssText = `
+                                position: fixed;
+                                bottom: 20px;
+                                left: 50%;
+                                transform: translateX(-50%);
+                                background: #f59e0b;
+                                color: #fff;
+                                padding: 10px 20px;
+                                border-radius: 30px;
+                                font-weight: bold;
+                                z-index: 10003;
+                                box-shadow: 0 4px 15px rgba(245, 158, 11, 0.5);
+                                animation: bounce 1s infinite;
+                                cursor: pointer;
+                            `;
+                            upArrow.onclick = () => window.scrollTo({ top: 0, behavior: 'smooth' });
+                            document.body.appendChild(upArrow);
+
+                            // Store reference to remove it later
+                            this._tempArrow = upArrow;
+
                         } else {
                             // Desktop
                             // Top bar button? or Sidebar?
@@ -3407,6 +3432,13 @@ const TutorialSystem = {
                             if (e.target.closest && e.target.closest(targetSelector)) {
                                 document.removeEventListener('click', continueTutorial, true);
                                 tip.remove();
+
+                                // REMOVE ARROW IF IT EXISTS
+                                if (this._tempArrow) {
+                                    this._tempArrow.remove();
+                                    this._tempArrow = null;
+                                }
+
                                 this.removeHighlights();
 
                                 setTimeout(() => {
@@ -5394,6 +5426,16 @@ const UI = {
 
     showView(targetView) {
         console.log('DEBUG: showView called with', targetView);
+
+        // LOCKED VIEW CHECKS
+        if (targetView === 'lifestyle' && !GameState.expensesUnlocked) {
+            showGameAlert('🔒 Gastos bloqueados: Aún vives con tus padres.', 'warning');
+            // Redirect to dashboard (force click to update nav state properly)
+            const dashBtn = document.querySelector('.nav-btn[data-view="dashboard"]');
+            if (dashBtn) dashBtn.click();
+            return;
+        }
+
         // 1. Update View Visibility
         document.querySelectorAll('.view').forEach(view => {
             view.classList.remove('active');
@@ -5406,12 +5448,7 @@ const UI = {
                 else if (targetView === 'real-estate') UI.updateRealEstate(RealEstate);
                 else if (targetView === 'job') UI.updateJob(JobSystem);
                 else if (targetView === 'education') UI.updateEducation(EducationModule);
-                else if (targetView === 'education') UI.updateEducation(EducationModule);
                 else if (targetView === 'lifestyle') {
-                    if (!GameState.expensesUnlocked) {
-                        showGameAlert('🔒 Gastos bloqueados: Aún vives con tus padres.', 'warning');
-                        return; // Stop navigation
-                    }
                     UI.updateLifestyle(LifestyleModule);
                 }
                 else if (targetView === 'dashboard') UI.updateDashboard();
