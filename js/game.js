@@ -3299,8 +3299,6 @@ const TutorialSystem = {
             userProfileBtn.style.opacity = '1';
         }
 
-        // 1. Congratulate Modal
-        // 1. Congratulate Modal
         // 1. Congratulate Modal with Premium Visuals
         const themeColor = '#f59e0b'; // Amber/Gold
         const icon = '🔑';
@@ -3333,79 +3331,111 @@ const TutorialSystem = {
                 text: '🚀 Ver mis Finanzas',
                 style: 'success',
                 fn: () => {
-                    // 1. Force User to find the Dashboard Button manually
-                    // Highlight ONLY the dashboard button
+                    // Mobile/Header Home Button logic
+                    const headerHome = document.querySelector('.header-left .home-btn');
+                    // Desktop Top Bar Home Button
+                    const desktopHome = document.getElementById('desktop-home-btn');
+                    // Desktop Sidebar Button
+                    const sidebarHome = document.querySelector('button[data-view="dashboard"]');
+
+                    // Determine which is visible/primary
+                    let targetBtn = null;
+                    let targetSelector = '';
+
+                    // Naive visibility check (offsetParent is null if hidden)
+                    if (headerHome && headerHome.offsetParent !== null) {
+                        targetBtn = headerHome;
+                        targetSelector = '.header-left .home-btn';
+                    } else if (desktopHome && desktopHome.offsetParent !== null) {
+                        targetBtn = desktopHome;
+                        targetSelector = '#desktop-home-btn';
+                    } else if (sidebarHome && sidebarHome.offsetParent !== null) {
+                        targetBtn = sidebarHome;
+                        targetSelector = 'button[data-view="dashboard"]';
+                    } else {
+                        // Fallback
+                        targetBtn = sidebarHome;
+                        targetSelector = 'button[data-view="dashboard"]';
+                    }
+
+                    // Force User to find the Dashboard Button manually
                     this.showOverlay();
-                    this.addHighlight('button[data-view="dashboard"]');
 
-                    // Add Tooltip explaining what to do
-                    const dashBtn = document.querySelector('button[data-view="dashboard"]');
-                    if (dashBtn) {
-                        const rect = dashBtn.getBoundingClientRect();
+                    if (targetBtn && targetSelector) {
+                        this.addHighlight(targetSelector);
 
-                        // Create specific tooltip for this action
+                        // Add Tooltip
+                        const rect = targetBtn.getBoundingClientRect();
+                        const isMobile = window.innerWidth <= 768; // CSS breakpoint usually
+
                         const tip = document.createElement('div');
                         tip.className = 'tutorial-tooltip';
                         tip.innerHTML = `
                             <div style="font-weight:700; margin-bottom:5px;">🏠 Tu Centro de Mando</div>
-                            <div>Pulsa el icono de CASA/USUARIO para ver el resumen de tus finanzas.</div>
-                            <div style="font-size:0.8rem; margin-top:5px; opacity:0.8;">(Es el único botón habilitado ahora mismo)</div>
+                            <div>Pulsa el icono de CASA para ver el resumen.</div>
                             <div class="tooltip-arrow"></div>
                         `;
-                        // Position above the button
                         tip.style.position = 'fixed';
-                        tip.style.left = (rect.left + rect.width / 2 - 120) + 'px';
-                        tip.style.top = (rect.top - 110) + 'px';
                         tip.style.zIndex = '10002';
+
+                        // Positioning
+                        if (isMobile) {
+                            // Mobile: Header is top. Button is top-left.
+                            // Place tooltip BELOW the button.
+                            tip.style.top = (rect.bottom + 15) + 'px';
+                            tip.style.left = '20px';
+                            tip.style.maxWidth = '250px'; // Limit width
+                            // Arrow adjustment could be added here if needed
+                        } else {
+                            // Desktop
+                            // Top bar button? or Sidebar?
+                            if (targetSelector === '#desktop-home-btn') {
+                                tip.style.top = (rect.bottom + 15) + 'px';
+                                tip.style.left = (rect.left) + 'px';
+                            } else {
+                                // Sidebar
+                                tip.style.left = (rect.right + 15) + 'px';
+                                tip.style.top = (rect.top) + 'px';
+                            }
+                        }
+
                         document.body.appendChild(tip);
 
                         // ONE-TIME CLICK LISTENER
                         const continueTutorial = (e) => {
-                            // Verify it's the dashboard button or inside it
-                            if (e.target.closest('button[data-view="dashboard"]')) {
-                                // Cleanup
-                                document.removeEventListener('click', continueTutorial, true); // Use capture to intercept if needed, but here usually bubbling is fine. 
-                                // Actually, since we want to ALLOW the click to propagate to trigger the view change, we shouldn't preventDefault.
-                                // But we need to detect it.
-
+                            // Helper to check if clicked inside target
+                            if (e.target.closest && e.target.closest(targetSelector)) {
+                                document.removeEventListener('click', continueTutorial, true);
                                 tip.remove();
-                                this.removeHighlights(); // Remove highlight of the button
+                                this.removeHighlights();
 
-                                // WAIT for view transition (small delay) then start Net Worth sequence
                                 setTimeout(() => {
-                                    // Make sure we are in dashboard view (the click should have handled it, but just in case)
-                                    // Current game logic handles view switching on click.
+                                    this.showOverlay();
 
-                                    // Now start the Net Worth Explanation
-                                    this.showOverlay(); // Show overlay again for the next steps
+                                    // Continue to Net Worth
+                                    setTimeout(() => {
+                                        const netWorth = document.querySelector('.metric-card.net-worth');
+                                        if (netWorth) this.addHighlight('.metric-card.net-worth');
 
-                                    // Sequence of highlights
-                                    const netWorth = document.querySelector('.metric-card.net-worth');
-                                    if (netWorth) this.addHighlight('.metric-card.net-worth');
-
-                                    this.showTooltip(
-                                        '.metric-card.net-worth',
-                                        '💰 Patrimonio Neto',
-                                        'Tu valor total (Dinero + Activos - Deudas). Obviamente, quieres que esto suba hasta la luna.',
-                                        'Siguiente',
-                                        () => {
-                                            this.removeHighlights();
-                                            this.hideTooltip();
-                                            // Proceed to Monthly Flow...
-                                            // (Rest of the logic continues below in the original code, but we need to chain it here)
-                                            this.continueToMonthlyFlow();
-                                        }
-                                    );
-                                }, 500);
-                            } else {
-                                // Block other clicks? The overlay does that via CSS pointer-events usually, 
-                                // but our removeHighlights() removes the blocking for the highlighted element.
-                                // So only the highlighted element is clickable.
+                                        this.showTooltip(
+                                            '.metric-card.net-worth',
+                                            '💰 Patrimonio Neto',
+                                            'Dinero + Activos - Deudas.',
+                                            'Siguiente',
+                                            () => {
+                                                this.removeHighlights();
+                                                this.hideTooltip();
+                                                this.continueToMonthlyFlow();
+                                            }
+                                        );
+                                    }, 500);
+                                }, 300);
                             }
                         };
-
-                        // Use Capture to ensure we catch it, but allow propagation
                         document.addEventListener('click', continueTutorial);
+                    } else {
+                        // Safe fallback
+                        this.continueToMonthlyFlow();
                     }
                 }
             }], true
