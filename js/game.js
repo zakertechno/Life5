@@ -9337,10 +9337,10 @@ try {
                 .custom-modal-box .modal-body { padding: 0 !important; }
                 .custom-modal-box { max-width: 440px !important; border-radius: 24px !important; overflow: hidden !important; border: 1px solid #334155 !important; }
                 .welcome-back-container { padding: 25px; text-align: center; background: linear-gradient(180deg, #0f172a 0%, #1e293b 100%); border-radius: 24px; max-height: 80vh; overflow-y: auto; }
-                .welcome-icon { font-size: 3rem; margin-bottom: 10px; display: block; animation: pulse 2s ease-in-out infinite; }
+                .welcome-icon { font-size: 3.5rem; margin-bottom: 10px; display: block; animation: pulse 2s ease-in-out infinite; filter: drop-shadow(0 0 15px rgba(56, 189, 248, 0.4)); }
                 @keyframes pulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.1); } }
-                .welcome-title { color: #38bdf8; margin: 0 0 5px; font-size: 1.3rem; font-weight: 700; }
-                .welcome-subtitle { color: #94a3b8; font-size: 0.85rem; margin-bottom: 15px; }
+                .welcome-title { color: #38bdf8; margin: 0 0 8px; font-size: 1.5rem; font-weight: 800; text-shadow: 0 0 20px rgba(56, 189, 248, 0.4); white-space: nowrap; }
+                .welcome-subtitle { color: #94a3b8; font-size: 0.9rem; margin-bottom: 20px; }
                 .saves-list { display: flex; flex-direction: column; gap: 10px; margin-bottom: 15px; }
                 .load-slot-card { background: rgba(30, 41, 59, 0.8); border: 1px solid #334155; border-radius: 12px; padding: 12px; text-align: left; position: relative; transition: border-color 0.2s; }
                 .load-slot-card:hover { border-color: #38bdf8; }
@@ -9411,6 +9411,7 @@ try {
                             text-align: center;
                             background: linear-gradient(180deg, #0f172a 0%, #1e293b 100%);
                             border-radius: 24px;
+                            overflow: hidden;
                         }
                         .profile-rocket {
                             font-size: 4rem;
@@ -9425,11 +9426,10 @@ try {
                         .profile-title {
                             color: #38bdf8;
                             margin: 0 0 20px 0;
-                            font-size: 1.6rem;
+                            font-size: clamp(1.1rem, 5vw, 1.6rem);
                             font-weight: 800;
                             text-shadow: 0 0 20px rgba(56, 189, 248, 0.4);
-                            letter-spacing: 0.5px;
-                            white-space: nowrap;
+                            line-height: 1.3;
                         }
                         .profile-features {
                             background: rgba(56, 189, 248, 0.1);
@@ -9510,7 +9510,7 @@ try {
                                 font-size: 3rem;
                             }
                             .profile-title {
-                                font-size: 1.3rem;
+                                font-size: 1.1rem;
                             }
                             .profile-features p {
                                 font-size: 0.85rem;
@@ -9527,7 +9527,7 @@ try {
                     </style>
                     <div class="profile-create-container">
                         <span class="profile-rocket">🚀</span>
-                        <h2 class="profile-title">¡Bienvenido a tu nueva vida!</h2>
+                        <h2 class="profile-title">¡Bienvenido<br>a tu nueva vida!</h2>
                         
                         <div class="profile-features">
                             <div style="display: grid; gap: 10px;">
