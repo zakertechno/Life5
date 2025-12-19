@@ -3338,9 +3338,12 @@ const TutorialSystem = {
             ' ',
             indepMsg,
             [{
-                text: '🚀 Ver mis Finanzas',
+                text: '🏠 Ver mis Finanzas',
                 style: 'success',
                 fn: () => {
+                    // Scroll to top immediately to ensure header is visible
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+
                     // Mobile/Header Home Button logic
                     const headerHome = document.querySelector('.header-left .home-btn');
                     // Desktop Top Bar Home Button
