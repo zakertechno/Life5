@@ -3790,17 +3790,17 @@ function showGameAlert(message, type = 'info', title = null, callback = null) {
         }, 150);
     };
 
-    // Close on overlay click
+    // Close on overlay click (Prevent for error/critical alerts)
     overlay.onclick = (e) => {
-        if (e.target === overlay) {
+        if (type !== 'error' && e.target === overlay) {
             overlay.style.animation = 'fadeIn 0.15s ease-out reverse';
             setTimeout(() => overlay.remove(), 150);
         }
     };
 
-    // Close on Escape key
+    // Close on Escape key (Prevent for error/critical alerts)
     const escHandler = (e) => {
-        if (e.key === 'Escape') {
+        if (type !== 'error' && e.key === 'Escape') {
             overlay.remove();
             document.removeEventListener('keydown', escHandler);
         }
@@ -4006,6 +4006,9 @@ const UI = {
 
         // Animate Cash
         if (cashDisplay) {
+            // Red if negative
+            cashDisplay.style.color = GameState.cash < 0 ? '#ef4444' : '';
+
             if (this.lastCash !== GameState.cash) {
                 this.animateValue(cashDisplay, this.lastCash, GameState.cash, 1000);
                 this.lastCash = GameState.cash;
@@ -8777,11 +8780,123 @@ function nextTurn() {
         GameState.history.labels.shift();
     }
 
+    // BANKRUPTCY WARNING SYSTEM
+    if (GameState.cash < 0) {
+        // Increment consecutive bankruptcy counter
+        GameState.consecutiveBankruptcyTurns = (GameState.consecutiveBankruptcyTurns || 0) + 1;
+
+        if (GameState.consecutiveBankruptcyTurns >= 3) {
+            // GAME OVER - BANKRUPTCY
+            setTimeout(() => {
+                showBankruptcyModal();
+            }, 100);
+            return; // Stop rendering updates behind modal
+        }
+
+        // WARNING
+        showGameAlert(
+            `
+            <div style="text-align: center;">
+                <div style="font-size: 3rem; margin-bottom: 15px;">💸</div>
+                <p style="color: #ef4444; font-weight: 700; font-size: 1.1rem; margin-bottom: 10px;">¡Tu saldo es negativo!</p>
+                <p style="color: #cbd5e1; margin-bottom: 15px;">
+                    Llevas <strong>${GameState.consecutiveBankruptcyTurns}/3</strong> avisos con deuda.
+                    <br>
+                    Necesitas liquidez urgentemente. <strong>Vende cosas o se acabará el juego.</strong>
+                </p>
+                <p style="color: #94a3b8; font-size: 0.9rem; font-style: italic;">
+                    "Si llegas a 3 avisos consecutivos, caerás en bancarrota."
+                </p>
+            </div>
+            `,
+            'error',
+            '⚠️ ¡ALERTA DE QUIEBRA!'
+        );
+    } else {
+        // Reset counter if positive balance
+        GameState.consecutiveBankruptcyTurns = 0;
+    }
+
     UI.render();
 }
 
 
 
+
+
+function showBankruptcyModal() {
+    const stats = GameState.lifetimeStats;
+
+    // Calculate final stats
+    let totalDebt = 0;
+    GameState.loans.forEach(l => totalDebt += l.remainingBalance);
+    const liquidationValue = GameState.netWorth; // Simplified view
+
+    const summary = `
+                <div style="text-align: center; padding: 15px; max-height: 75vh; overflow-y: auto;">
+                    <div style="font-size: 3rem; margin-bottom: 10px;">💸☠️</div>
+                    <h2 style="color: #ef4444; margin: 0 0 10px 0; font-size: 1.6rem; text-transform: uppercase; letter-spacing: 1px;">¡BANCARROTA!</h2>
+                    
+                    <div style="background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.3); border-radius: 12px; padding: 15px; margin-bottom: 20px;">
+                        <p style="color: #fca5a5; margin: 0 0 10px 0; font-size: 1rem; font-weight: 600;">
+                            Tus deudas te han consumido.
+                        </p>
+                        <p style="color: #cbd5e1; margin: 0; font-size: 0.9rem;">
+                            Has ignorado las advertencias de liquidez durante 3 meses consecutivos. El banco ha ejecutado el embargo de todos tus bienes.
+                        </p>
+                    </div>
+
+                    <div style="background: rgba(15, 23, 42, 0.6); border: 1px solid #334155; border-radius: 12px; padding: 15px; margin-bottom: 20px;">
+                         <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+                            <span style="color: #94a3b8;">Patrimonio Final:</span>
+                            <strong style="color: #f87171;">${formatCurrency(liquidationValue)}</strong>
+                        </div>
+                        <div style="display: flex; justify-content: space-between;">
+                            <span style="color: #94a3b8;">Deuda Total:</span>
+                            <strong style="color: #f87171;">-${formatCurrency(totalDebt)}</strong>
+                        </div>
+                    </div>
+
+                    <p style="color: #94a3b8; font-size: 0.85rem; font-style: italic;">
+                        "El mercado no perdona a quien no sabe gestionar su caja."
+                    </p>
+                    
+                    <button onclick="location.reload()" style="
+                        background: linear-gradient(135deg, #ef4444, #b91c1c);
+                        color: white; border: none; padding: 12px 25px; border-radius: 8px;
+                        font-weight: 700; font-size: 1rem; cursor: pointer; margin-top: 15px;
+                        box-shadow: 0 4px 6px -1px rgba(239, 68, 68, 0.3);
+                        width: 100%;
+                    ">
+                        Intentarlo de Nuevo
+                    </button>
+                </div>
+    `;
+
+    // Create modal overlay
+    const overlay = document.createElement('div');
+    overlay.className = 'game-alert-overlay';
+    overlay.style.cssText = `
+        position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+        background: rgba(0, 0, 0, 0.85); backdrop-filter: blur(8px);
+        display: flex; justify-content: center; align-items: center; z-index: 9999;
+        animation: fadeIn 0.3s ease-out;
+    `;
+
+    overlay.innerHTML = `
+        <div style="
+            background: linear-gradient(145deg, #1e293b, #0f172a);
+            border: 1px solid #ef4444; box-shadow: 0 0 30px rgba(239, 68, 68, 0.15);
+            border-radius: 20px; width: 90%; max-width: 500px;
+            animation: slideUp 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            position: relative; overflow: hidden;
+        ">
+            ${summary}
+        </div>
+    `;
+
+    document.body.appendChild(overlay);
+}
 
 // INIT
 try {
