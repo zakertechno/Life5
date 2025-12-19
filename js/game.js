@@ -7832,7 +7832,7 @@ const UI = {
                     const stats = co.lastStats || { actualQuality: 0, requiredQuality: 0, targetRep: 3, repGrowth: 0 };
                     const qGap = stats.actualQuality - stats.requiredQuality;
                     const qColor = qGap >= 0 ? '#4ade80' : '#f87171';
-                    const qText = qGap >= 0 ? 'Excelente (Sube Reputación)' : 'Insuficiente (Baja Reputación)';
+                    const qText = qGap >= 0 ? 'La reputación está subiendo' : 'La reputación está bajando';
 
                     let provOpts = '';
                     for (const [k, v] of Object.entries(CompanyModule.providers)) {
@@ -7987,8 +7987,9 @@ const UI = {
                                             </div>
                                         </div>
                                         <div style="text-align:center; padding-top:15px;">
-                                            <p style="margin-bottom:5px;">Objetivo Reputación: <strong>${stats.targetRep ? stats.targetRep.toFixed(2) : '3.50'}</strong></p>
-                                            <p style="color:${qColor}; font-weight:700; font-size:0.95rem;">${qText}</p>
+                                            <p style="margin-bottom:5px; color:#fbbf24;">Reputación Actual: <strong>${co.reputation.toFixed(2)}</strong></p>
+                                            <p style="margin-bottom:5px; color:${(stats.targetRep || 0) > co.reputation ? '#4ade80' : '#f87171'}">Proyección de la reputacion: <strong>${stats.targetRep ? stats.targetRep.toFixed(2) : '3.50'}</strong></p>
+
                                         </div>
                                     </div>
                                 </div>
