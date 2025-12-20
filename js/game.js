@@ -2715,7 +2715,7 @@ const TutorialSystem = {
                 bottom: 0 !important;
                 width: 100vw !important;
                 height: 100vh !important;
-                background: rgba(0, 0, 0, 0.9) !important;
+                background: rgba(0, 0, 0, 0.8) !important;
                 z-index: 99999 !important;
                 pointer-events: all !important;
                 animation: tutorialFadeIn 0.3s ease-out;
@@ -2813,8 +2813,17 @@ const TutorialSystem = {
         }
     },
 
-    addHighlight(selector) {
-        const elements = document.querySelectorAll(selector);
+    addHighlight(selectorOrElement) {
+        let elements = [];
+        if (typeof selectorOrElement === 'string') {
+            elements = document.querySelectorAll(selectorOrElement);
+        } else if (selectorOrElement instanceof Element) {
+            elements = [selectorOrElement];
+        } else if (selectorOrElement && selectorOrElement.length) {
+            // Handle NodeList or Array
+            elements = Array.from(selectorOrElement);
+        }
+
         elements.forEach(el => {
             el.classList.add('tutorial-highlight');
             this.highlightedElements.push(el);
@@ -2828,12 +2837,18 @@ const TutorialSystem = {
         this.highlightedElements = [];
     },
 
-    showTooltip(targetSelector, title, message, buttonText, onComplete) {
+    showTooltip(targetSelectorOrElement, title, message, buttonText, onComplete) {
         // Remove existing tooltip
         const existing = document.querySelector('.tutorial-tooltip');
         if (existing) existing.remove();
 
-        const target = document.querySelector(targetSelector);
+        let target;
+        if (typeof targetSelectorOrElement === 'string') {
+            target = document.querySelector(targetSelectorOrElement);
+        } else if (targetSelectorOrElement instanceof Element) {
+            target = targetSelectorOrElement;
+        }
+
         if (!target) return;
 
         const tooltip = document.createElement('div');
@@ -3498,149 +3513,434 @@ const TutorialSystem = {
                     window.scrollTo({ top: 0, behavior: 'smooth' });
 
                     // Mobile/Header Home Button logic
-                    const headerHome = document.querySelector('.header-left .home-btn');
-                    // Desktop Top Bar Home Button
-                    const desktopHome = document.getElementById('desktop-home-btn');
-                    // Desktop Sidebar Button
-                    const sidebarHome = document.querySelector('button[data-view="dashboard"]');
+                    const homeTab = document.querySelector('.nav-btn[data-view="dashboard"]');
+                    if (homeTab) homeTab.click();
 
-                    // Determine which is visible/primary
-                    let targetBtn = null;
-                    let targetSelector = '';
-
-                    // Naive visibility check (offsetParent is null if hidden)
-                    if (headerHome && headerHome.offsetParent !== null) {
-                        targetBtn = headerHome;
-                        targetSelector = '.header-left .home-btn';
-                    } else if (desktopHome && desktopHome.offsetParent !== null) {
-                        targetBtn = desktopHome;
-                        targetSelector = '#desktop-home-btn';
-                    } else if (sidebarHome && sidebarHome.offsetParent !== null) {
-                        targetBtn = sidebarHome;
-                        targetSelector = 'button[data-view="dashboard"]';
-                    } else {
-                        // Fallback
-                        targetBtn = sidebarHome;
-                        targetSelector = 'button[data-view="dashboard"]';
-                    }
-
-                    if (targetBtn && targetSelector) {
-                        // Delay 2 seconds before showing overlay and tooltip
-                        setTimeout(() => {
-                            window.scrollTo({ top: 0, behavior: 'smooth' });
-                            this.showOverlay();
-                            this.addHighlight(targetSelector);
-
-                            // Add Tooltip
-                            const rect = targetBtn.getBoundingClientRect();
-                            const isMobile = window.innerWidth <= 768; // CSS breakpoint usually
-
-                            const tip = document.createElement('div');
-                            tip.className = 'tutorial-tooltip';
-                            tip.innerHTML = `
-                            <div style="font-weight:700; margin-bottom:5px;">🏠 Tu Centro de Mando</div>
-                            <div>Pulsa el icono 🏠 para ver el resumen.</div>
-                            <div class="tooltip-arrow"></div>
-                        `;
-                            tip.style.position = 'fixed';
-                            tip.style.zIndex = '10002';
-
-                            // Positioning
-                            if (isMobile) {
-                                // Mobile: Header is top. Button is top-left.
-                                // Place tooltip BELOW the button.
-                                tip.style.top = (rect.bottom + 15) + 'px';
-                                tip.style.left = '20px';
-                                tip.style.maxWidth = '250px'; // Limit width
-
-                                // GUIDING ARROW (User request: show arrow if scroll is down)
-                                const upArrow = document.createElement('div');
-                                upArrow.className = 'tutorial-up-arrow';
-                                upArrow.innerHTML = '⬆️ Arriba';
-                                upArrow.style.cssText = `
-                                position: fixed;
-                                bottom: 20px;
-                                left: 50%;
-                                transform: translateX(-50%);
-                                background: #f59e0b;
-                                color: #fff;
-                                padding: 10px 20px;
-                                border-radius: 30px;
-                                font-weight: bold;
-                                z-index: 10003;
-                                box-shadow: 0 4px 15px rgba(245, 158, 11, 0.5);
-                                animation: bounce 1s infinite;
-                                cursor: pointer;
-                            `;
-                                upArrow.onclick = () => window.scrollTo({ top: 0, behavior: 'smooth' });
-                                document.body.appendChild(upArrow);
-
-                                // Store reference to remove it later
-                                this._tempArrow = upArrow;
-
-                            } else {
-                                // Desktop
-                                // Top bar button? or Sidebar?
-                                if (targetSelector === '#desktop-home-btn') {
-                                    tip.style.top = (rect.bottom + 15) + 'px';
-                                    tip.style.left = (rect.left) + 'px';
-                                } else {
-                                    // Sidebar
-                                    tip.style.left = (rect.right + 15) + 'px';
-                                    tip.style.top = (rect.top) + 'px';
-                                }
-                            }
-
-                            document.body.appendChild(tip);
-
-                            // ONE-TIME CLICK LISTENER
-                            const continueTutorial = (e) => {
-                                // Helper to check if clicked inside target
-                                if (e.target.closest && e.target.closest(targetSelector)) {
-                                    document.removeEventListener('click', continueTutorial, true);
-                                    tip.remove();
-
-                                    // REMOVE ARROW IF IT EXISTS
-                                    if (this._tempArrow) {
-                                        this._tempArrow.remove();
-                                        this._tempArrow = null;
-                                    }
-
-                                    this.removeHighlights();
-
-                                    setTimeout(() => {
-                                        this.showOverlay();
-
-                                        // Continue to Net Worth
-                                        setTimeout(() => {
-                                            const netWorth = document.querySelector('.metric-card.net-worth');
-                                            if (netWorth) this.addHighlight('.metric-card.net-worth');
-
-                                            this.showTooltip(
-                                                '.metric-card.net-worth',
-                                                '💰 Patrimonio Neto',
-                                                'Dinero + Activos - Deudas.',
-                                                'Siguiente',
-                                                () => {
-                                                    this.removeHighlights();
-                                                    this.hideTooltip();
-                                                    this.continueToMonthlyFlow();
-                                                }
-                                            );
-                                        }, 500);
-                                    }, 300);
-                                }
-                            };
-                            document.addEventListener('click', continueTutorial);
-                        }, 2000); // 2 second delay
-                    } else {
-                        // Safe fallback
-                        this.continueToMonthlyFlow();
-                    }
+                    // Restore Personal Finance Tutorial Chain
+                    TutorialSystem.continueToMonthlyFlow();
                 }
             }], true
         );
     },
+
+    // CONTEXTUAL TUTORIALS ROUTER
+    checkContextual(view) {
+        // Only run if main tutorial is complete
+        if (!GameState.tutorialFlags.tutorialComplete) return;
+
+        switch (view) {
+            case 'company_summary':
+                this.tutorial_CompanySummary();
+                break;
+            case 'company_staff':
+                this.tutorial_CompanyPersonnel();
+                break;
+            case 'company_product':
+                this.tutorial_CompanyProduct();
+                break;
+            case 'company_marketing':
+                this.tutorial_CompanyMarketing_V2();
+                break;
+            case 'company_finance':
+                this.tutorial_CompanyFinance();
+                break;
+        }
+    },
+
+    // 1. Company Summary Tutorial
+    tutorial_CompanySummary() {
+        if (GameState.tutorialFlags.seenCompanySummary) return;
+
+        // Don't set flag yet. Wait for success.
+
+        this.injectStyles();
+        this.showOverlay();
+
+        // Retry check for element (up to 5 times, 200ms apart)
+        let attempts = 0;
+        const check = setInterval(() => {
+            attempts++;
+            const summaryTab = document.getElementById('comp-summary-tab');
+            if (summaryTab) {
+                clearInterval(check);
+
+                // Mark as seen only on success
+                GameState.tutorialFlags.seenCompanySummary = true;
+                PersistenceModule.saveGame();
+
+                // Find the summary cards container (first grid usually)
+                const grid = summaryTab.querySelector('div[style*="display:grid"]') || summaryTab.firstElementChild;
+
+                if (grid) {
+                    this.addHighlight(grid);
+                    grid.scrollIntoView({ behavior: 'smooth', block: 'center' });
+
+                    this.showTooltip(
+                        grid,
+                        'Salud Financiera',
+                        'Lo vital es que tus <strong>Ventas</strong> superen a tus <strong>Gastos Totales</strong>. <br><br>Si gastas más de lo que ingresas, quemarás tu caja y quebrarás.',
+                        'Siguiente',
+                        () => {
+                            this.removeHighlights();
+                            this.hideTooltip();
+
+                            // STEP 2: General Status
+                            setTimeout(() => {
+                                const statusCard = document.getElementById('comp-status-card');
+                                if (statusCard) {
+                                    this.addHighlight(statusCard);
+                                    statusCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
+
+                                    this.showTooltip(
+                                        statusCard,
+                                        'Estado General',
+                                        'Aquí controlas tu <strong>Reputación</strong> y la capacidad de atender clientes.<br><br>Una buena reputación atrae más ventas, pero necesitas capacidad para atenderlas.',
+                                        'Ir a Finanzas',
+                                        () => {
+                                            this.removeHighlights();
+                                            this.hideOverlay();
+                                            this.hideTooltip();
+
+                                            // Auto-navigate to Finance
+                                            const financeTab = document.querySelector('button[data-tab="finance"]');
+                                            if (financeTab) financeTab.click();
+                                        }
+                                    );
+                                } else {
+                                    this.hideOverlay();
+                                }
+                            }, 500);
+                        }
+                    );
+                } else {
+                    // Should not happen if comp-summary-tab exists
+                    this.hideOverlay();
+                }
+            } else {
+                if (attempts >= 10) {
+                    clearInterval(check);
+                    this.hideOverlay();
+                    console.warn('Tutorial Target Not Found: comp-summary-tab');
+                }
+            }
+        }, 200);
+    },
+
+    // 2. Company Personnel Tutorial
+    tutorial_CompanyPersonnel() {
+        if (GameState.tutorialFlags.seenCompanyPersonnel) return;
+
+        this.injectStyles();
+        this.showOverlay();
+
+        let attempts = 0;
+        const check = setInterval(() => {
+            attempts++;
+            const hireTab = document.getElementById('comp-hire-tab');
+            if (hireTab) {
+                clearInterval(check);
+                GameState.tutorialFlags.seenCompanyPersonnel = true;
+                PersistenceModule.saveGame();
+
+                this.addHighlight(hireTab);
+                hireTab.scrollIntoView({ behavior: 'smooth', block: 'center' });
+
+                this.showTooltip(
+                    hireTab,
+                    'Hacer Crecer el Equipo',
+                    'Contratar empleados aumenta tu capacidad. <br><br>¡Elige bien! Cada empleado cuesta un salario mensual.',
+                    'Vale',
+                    () => {
+                        this.removeHighlights();
+                        this.hideOverlay();
+                        this.hideTooltip();
+                    }
+                );
+            } else {
+                if (attempts >= 10) {
+                    clearInterval(check);
+                    this.hideOverlay();
+                }
+            }
+        }, 200);
+    },
+
+    // 3. Company Product Tutorial
+    tutorial_CompanyProduct() {
+        if (GameState.tutorialFlags.seenCompanyProduct) return;
+
+        this.injectStyles();
+        this.showOverlay();
+
+        let attempts = 0;
+        const check = setInterval(() => {
+            attempts++;
+            // NEW ROBUST TARGETING (Stable ID)
+            const target = document.getElementById('comp-product-dev-card');
+
+            if (target) {
+                clearInterval(check);
+                GameState.tutorialFlags.seenCompanyProduct = true;
+                PersistenceModule.saveGame();
+
+                // STEP 1: Product Development (I+D)
+                this.addHighlight(target);
+                target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+
+                this.showTooltip(
+                    target,
+                    '1. Desarrollo de Producto',
+                    '¡La calidad es clave! <br><br>Invierte en <strong>I+D</strong> para subir de nivel. A mayor nivel, más satisfechos estarán tus clientes.',
+                    'Siguiente',
+                    () => {
+                        this.removeHighlights();
+                        this.hideTooltip();
+
+                        // STEP 2: Pricing Strategy
+                        setTimeout(() => {
+                            const pricing = document.getElementById('comp-pricing-card');
+                            if (pricing) {
+                                this.addHighlight(pricing);
+                                pricing.scrollIntoView({ behavior: 'smooth', block: 'center' });
+
+                                this.showTooltip(
+                                    pricing,
+                                    '2. Estrategia de Precio',
+                                    'El precio debe ser justo. <br><br>Si cobras más de lo que tu reputación permite, <strong>perderás ventas</strong>. Busca el equilibrio.',
+                                    'Siguiente',
+                                    () => {
+                                        this.removeHighlights();
+                                        this.hideTooltip();
+
+                                        // STEP 3: Reputation Analysis
+                                        setTimeout(() => {
+                                            const rep = document.getElementById('comp-reputation-card');
+                                            if (rep) {
+                                                this.addHighlight(rep);
+                                                rep.scrollIntoView({ behavior: 'smooth', block: 'center' });
+
+                                                this.showTooltip(
+                                                    rep,
+                                                    '3. Tu Reputación',
+                                                    'Aquí ves si tus clientes están felices o enfadados.<br><br>Mantén la ✅ <strong>Calidad Real</strong> por encima de la <strong>Exigencia</strong>.',
+                                                    'Siguiente',
+                                                    () => {
+                                                        this.removeHighlights();
+                                                        this.hideTooltip();
+
+                                                        // STEP 4: Providers
+                                                        setTimeout(() => {
+                                                            const prov = document.getElementById('comp-providers-section');
+                                                            if (prov) {
+                                                                this.addHighlight(prov);
+                                                                prov.scrollIntoView({ behavior: 'smooth', block: 'center' });
+
+                                                                this.showTooltip(
+                                                                    prov,
+                                                                    '4. Proveedores',
+                                                                    'Tus ingredientes importan. <br><br>Mejores proveedores suben la calidad, pero aumentan tus costes. ¡Tú decides!',
+                                                                    'Entendido',
+                                                                    () => {
+                                                                        this.removeHighlights();
+                                                                        this.hideOverlay();
+                                                                        this.hideTooltip();
+                                                                    }
+                                                                );
+                                                            } else {
+                                                                this.hideOverlay(); // Exit if missing
+                                                            }
+                                                        }, 500);
+                                                    }
+                                                );
+                                            } else {
+                                                this.hideOverlay(); // Exit if missing
+                                            }
+                                        }, 500);
+                                    }
+                                );
+                            } else {
+                                this.hideOverlay(); // Exit if missing
+                            }
+                        }, 500);
+                    }
+                );
+            } else {
+                if (attempts >= 10) {
+                    clearInterval(check);
+                    this.hideOverlay();
+                }
+            }
+        }, 200);
+    },
+
+    // 4. Company Marketing Tutorial
+    tutorial_CompanyMarketing() {
+        if (GameState.tutorialFlags.seenCompanyMarketing) return;
+        GameState.tutorialFlags.seenCompanyMarketing = true;
+        PersistenceModule.saveGame();
+
+        this.injectStyles();
+        this.showOverlay();
+
+        setTimeout(() => {
+            // Find campaign buttons. They are usually inside a grid in comp-marketing-tab
+            const marketingTab = document.getElementById('comp-marketing-tab');
+            const campaigns = marketingTab ? marketingTab.querySelectorAll('button') : [];
+
+            if (campaigns.length > 0) {
+                // Highlight the first campaign button or the container
+                const target = campaigns[0].parentElement; // The grid/container
+                if (target) {
+                    this.addHighlight(target);
+                    target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+
+                    this.showTooltip(
+                        target,
+                        'Campañas de Marketing',
+                        'Si nadie te conoce, nadie te compra. <br><br>Lanza campañas para aumentar tu <strong>Reputación</strong> y atraer más clientes.',
+                        '¡A vender!',
+                        () => {
+                            this.removeHighlights();
+                            this.hideOverlay();
+                            this.hideTooltip();
+                        }
+                    );
+                } else {
+                    this.hideOverlay();
+                }
+            } else {
+                this.hideOverlay();
+            }
+        }, 300);
+    },
+
+    // 5. Company Finance Tutorial
+    tutorial_CompanyFinance() {
+        if (GameState.tutorialFlags.seenCompanyFinance) return;
+
+        this.injectStyles();
+        this.showOverlay();
+
+        let attempts = 0;
+        const check = setInterval(() => {
+            attempts++;
+            const salaryInput = document.getElementById('co-ceo-salary');
+
+            if (salaryInput) {
+                clearInterval(check);
+                GameState.tutorialFlags.seenCompanyFinance = true;
+                PersistenceModule.saveGame();
+
+                const target = salaryInput.closest('div[style*="background"]');
+                this.addHighlight(target);
+                target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+
+                this.showTooltip(
+                    target,
+                    'Ajusta tu Salario',
+                    'Para empezar con buen pie, <strong>bájate el sueldo a 1000€</strong>.<br><br>Esto ayudará a que la empresa no entre en pérdidas el primer mes.',
+                    'Hecho',
+                    () => {
+                        this.removeHighlights();
+                        this.hideOverlay();
+                        this.hideTooltip();
+                    }
+                );
+            } else {
+                if (attempts >= 10) {
+                    clearInterval(check);
+                    this.hideOverlay();
+                }
+            }
+        }, 200);
+    },
+
+    // 4b. Company Marketing Tutorial V2 (Robust Fix)
+    tutorial_CompanyMarketing_V2() {
+        if (GameState.tutorialFlags.seenCompanyMarketing) return;
+
+        this.injectStyles();
+        this.showOverlay();
+
+        let attempts = 0;
+        const check = setInterval(() => {
+            attempts++;
+            // New Robust ID Targeting
+            const target = document.getElementById('comp-marketing-infra-card');
+
+            if (target) {
+                clearInterval(check);
+                GameState.tutorialFlags.seenCompanyMarketing = true;
+                PersistenceModule.saveGame();
+
+                // STEP 1: Infrastructure
+                this.addHighlight(target);
+                target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+
+                this.showTooltip(
+                    target,
+                    '1. Infraestructura',
+                    'Invierte en tu equipo de marketing. <br><br>Mayor nivel = <strong>Más eficacia</strong> en tus campañas (más clientes por euro invertido).',
+                    'Siguiente',
+                    () => {
+                        this.removeHighlights();
+                        this.hideTooltip();
+
+                        // STEP 2: Channels
+                        setTimeout(() => {
+                            const channels = document.getElementById('comp-marketing-channels-section');
+                            if (channels) {
+                                this.addHighlight(channels);
+                                channels.scrollIntoView({ behavior: 'smooth', block: 'center' });
+
+                                this.showTooltip(
+                                    channels,
+                                    '2. Canales',
+                                    '¿Dónde están tus clientes? <br><br>Cada canal tiene un coste y un impacto diferente. ¡Combínalos para maximizar tu alcance!',
+                                    'Siguiente',
+                                    () => {
+                                        this.removeHighlights();
+                                        this.hideTooltip();
+
+                                        // STEP 3: Analysis
+                                        setTimeout(() => {
+                                            const analysis = document.getElementById('comp-marketing-analysis-card');
+                                            if (analysis) {
+                                                this.addHighlight(analysis);
+                                                analysis.scrollIntoView({ behavior: 'smooth', block: 'center' });
+
+                                                this.showTooltip(
+                                                    analysis,
+                                                    '3. Análisis de Demanda',
+                                                    'Aquí ves de dónde vienen tus clientes.<br><br>Tu crecimiento depende de tu Tráfico, Marketing, Reputación y el factor Orgánico (boca a boca).',
+                                                    'Entendido',
+                                                    () => {
+                                                        this.removeHighlights();
+                                                        this.hideOverlay();
+                                                        this.hideTooltip();
+                                                    }
+                                                );
+                                            } else {
+                                                this.hideOverlay();
+                                            }
+                                        }, 500);
+                                    }
+                                );
+                            } else {
+                                this.hideOverlay();
+                            }
+                        }, 500);
+                    }
+                );
+            } else {
+                if (attempts >= 10) {
+                    clearInterval(check);
+                    this.hideOverlay();
+                }
+            }
+        }, 200);
+    },
+
 
     // Helper to continue the sequence (split for readability)
     continueToMonthlyFlow() {
@@ -5894,13 +6194,21 @@ const UI = {
                         </div>
                         <p style="color:#94a3b8; font-size:0.9rem; margin-top:20px;">Tu aventura empresarial comienza ahora.</p>
                     </div>
-                `, [{ text: '🚀 Ir al Panel de Control', style: 'success', fn: null }], true);
-                UI.updateHeader();
-                UI.updateJob(JobSystem);
-                UI.updateDashboard();
-                setTimeout(() => {
-                    UI.checkContextualTutorial('company_summary');
-                }, 500);
+                `, [{
+                    text: '🚀 Ir al Panel de Control',
+                    style: 'success',
+                    fn: () => {
+                        UI.updateHeader();
+                        UI.updateJob(JobSystem);
+                        UI.updateDashboard();
+                        setTimeout(() => {
+                            // Force reset to ensure it runs even if it failed previously
+                            if (GameState.tutorialFlags) GameState.tutorialFlags.seenCompanySummary = false;
+
+                            UI.checkContextualTutorial('company_summary');
+                        }, 500);
+                    }
+                }], true);
             } else {
                 showGameAlert(res.message, 'error');
             }
@@ -5992,8 +6300,9 @@ const UI = {
     },
 
     checkContextualTutorial(view) {
-        // Disabled in favor of new TutorialSystem
-        return;
+        if (TutorialSystem && TutorialSystem.checkContextual) {
+            TutorialSystem.checkContextual(view);
+        }
     },
 
     startCompanyTutorial() {
@@ -7745,7 +8054,7 @@ const UI = {
                         tabContent.innerHTML = `
                                 <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px;">
                                     <!-- Estado General Card -->
-                                    <div style="background: linear-gradient(145deg, rgba(74, 222, 128, 0.08), transparent); border: 1px solid rgba(74, 222, 128, 0.2); border-radius: 16px; padding: 20px;">
+                                    <div id="comp-status-card" style="background: linear-gradient(145deg, rgba(74, 222, 128, 0.08), transparent); border: 1px solid rgba(74, 222, 128, 0.2); border-radius: 16px; padding: 20px;">
                                         <h3 style="margin: 0 0 15px 0; color: #4ade80; font-size: 1rem; display: flex; align-items: center; gap: 8px;">
                                             <span style="font-size: 1.3rem;">📊</span> Estado General
                                         </h3>
@@ -7787,33 +8096,35 @@ const UI = {
                                         <ul style="max-height: 150px; overflow-y: auto; padding-left: 20px; color: #cbd5e1; font-size: 0.9rem; line-height: 1.6;">${eventsHtml}</ul>
                                     </div>
                                     
-                                    <!-- Desglose Financiero Card -->
-                                    <div style="background: linear-gradient(145deg, rgba(168, 85, 247, 0.08), transparent); border: 1px solid rgba(168, 85, 247, 0.2); border-radius: 16px; padding: 20px;">
-                                        <h3 style="margin: 0 0 15px 0; color: #a855f7; font-size: 1rem; display: flex; align-items: center; gap: 8px;">
-                                            <span style="font-size: 1.3rem;">📋</span> Desglose Financiero
-                                        </h3>
-                                        <table style="width: 100%; font-size: 0.85rem; border-collapse: collapse;">
-                                            <tr style="border-bottom: 1px solid #334155;">
-                                                <td style="padding: 6px 0; color: #94a3b8;">💵 Ventas</td>
-                                                <td style="text-align: right; color: #4ade80; font-weight: 700;">+${formatCurrency(income.revenue)}</td>
-                                            </tr>
-                                            <tr><td style="padding: 6px 0; color: #94a3b8;">📦 COGS</td><td style="text-align: right; color: #f87171;">-${formatCurrency(details.cogs)}</td></tr>
-                                            <tr><td style="padding: 6px 0; color: #94a3b8;">👥 Salarios</td><td style="text-align: right; color: #f87171;">-${formatCurrency(details.wages)}</td></tr>
-                                            <tr><td style="padding: 6px 0; color: #94a3b8;">🏠 Alquiler</td><td style="text-align: right; color: #f87171;">-${formatCurrency(details.rent)}</td></tr>
-                                            <tr><td style="padding: 6px 0; color: #94a3b8;">📢 Marketing</td><td style="text-align: right; color: #f87171;">-${formatCurrency(details.marketing)}</td></tr>
-                                            <tr><td style="padding: 6px 0; color: #94a3b8;">🔬 I+D</td><td style="text-align: right; color: #f87171;">-${formatCurrency(details.opex)}</td></tr>
-                                            <tr style="border-bottom: 1px solid #334155;"><td style="padding: 6px 0; color: #94a3b8;">👔 Salario CEO</td><td style="text-align: right; color: #f87171;">-${formatCurrency(details.salary)}</td></tr>
-                                            <tr style="font-weight: bold;"><td style="padding-top: 10px; color: #fff;">TOTAL GASTOS</td><td style="text-align: right; padding-top: 10px; color: #f87171;">-${formatCurrency(co.expensesLastMonth)}</td></tr>
-                                        </table>
-                                    </div>
-
-                                    <!-- Gráfico Card -->
-                                    <div style="background: linear-gradient(145deg, rgba(251, 191, 36, 0.08), transparent); border: 1px solid rgba(251, 191, 36, 0.2); border-radius: 16px; padding: 20px;">
-                                        <h3 style="margin: 0 0 15px 0; color: #fbbf24; font-size: 1rem; display: flex; align-items: center; gap: 8px;">
-                                            <span style="font-size: 1.3rem;">📈</span> Evolución Financiera
-                                        </h3>
-                                        <div style="height: 200px; width: 100%;">
-                                            <canvas id="revenueChart"></canvas>
+                                    <div id="comp-summary-tab">
+                                        <!-- Desglose Financiero Card -->
+                                        <div style="background: linear-gradient(145deg, rgba(168, 85, 247, 0.08), transparent); border: 1px solid rgba(168, 85, 247, 0.2); border-radius: 16px; padding: 20px;">
+                                            <h3 style="margin: 0 0 15px 0; color: #a855f7; font-size: 1rem; display: flex; align-items: center; gap: 8px;">
+                                                <span style="font-size: 1.3rem;">📋</span> Desglose Financiero
+                                            </h3>
+                                            <table style="width: 100%; font-size: 0.85rem; border-collapse: collapse;">
+                                                <tr style="border-bottom: 1px solid #334155;">
+                                                    <td style="padding: 6px 0; color: #94a3b8;">💵 Ventas</td>
+                                                    <td style="text-align: right; color: #4ade80; font-weight: 700;">+${formatCurrency(income.revenue)}</td>
+                                                </tr>
+                                                <tr><td style="padding: 6px 0; color: #94a3b8;">📦 COGS</td><td style="text-align: right; color: #f87171;">-${formatCurrency(details.cogs)}</td></tr>
+                                                <tr><td style="padding: 6px 0; color: #94a3b8;">👥 Salarios</td><td style="text-align: right; color: #f87171;">-${formatCurrency(details.wages)}</td></tr>
+                                                <tr><td style="padding: 6px 0; color: #94a3b8;">🏠 Alquiler</td><td style="text-align: right; color: #f87171;">-${formatCurrency(details.rent)}</td></tr>
+                                                <tr><td style="padding: 6px 0; color: #94a3b8;">📢 Marketing</td><td style="text-align: right; color: #f87171;">-${formatCurrency(details.marketing)}</td></tr>
+                                                <tr><td style="padding: 6px 0; color: #94a3b8;">🔬 I+D</td><td style="text-align: right; color: #f87171;">-${formatCurrency(details.opex)}</td></tr>
+                                                <tr style="border-bottom: 1px solid #334155;"><td style="padding: 6px 0; color: #94a3b8;">👔 Salario CEO</td><td style="text-align: right; color: #f87171;">-${formatCurrency(details.salary)}</td></tr>
+                                                <tr style="font-weight: bold;"><td style="padding-top: 10px; color: #fff;">TOTAL GASTOS</td><td style="text-align: right; padding-top: 10px; color: #f87171;">-${formatCurrency(co.expensesLastMonth)}</td></tr>
+                                            </table>
+                                        </div>
+    
+                                        <!-- Gráfico Card -->
+                                        <div style="background: linear-gradient(145deg, rgba(251, 191, 36, 0.08), transparent); border: 1px solid rgba(251, 191, 36, 0.2); border-radius: 16px; padding: 20px;">
+                                            <h3 style="margin: 0 0 15px 0; color: #fbbf24; font-size: 1rem; display: flex; align-items: center; gap: 8px;">
+                                                <span style="font-size: 1.3rem;">📈</span> Evolución Financiera
+                                            </h3>
+                                            <div style="height: 200px; width: 100%;">
+                                                <canvas id="revenueChart"></canvas>
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
@@ -7981,7 +8292,7 @@ const UI = {
                                     </button>
                                 </div>
                                 
-                                <div style="
+                                <div id="comp-hire-tab" style="
                                     background: linear-gradient(145deg, rgba(56, 189, 248, 0.1), rgba(14, 165, 233, 0.05));
                                     border: 1px solid rgba(56, 189, 248, 0.3);
                                     border-radius: 16px;
@@ -8344,7 +8655,7 @@ const UI = {
 
                     tabContent.innerHTML = `
                             <div class="comp-dash-container">
-                                <div style="
+                                <div id="comp-product-dev-card" style="
                                     background: linear-gradient(145deg, rgba(74, 222, 128, 0.1), rgba(34, 197, 94, 0.05));
                                     border: 1px solid rgba(74, 222, 128, 0.3);
                                     border-radius: 16px;
@@ -8448,7 +8759,7 @@ const UI = {
                                 </div>
                                 
                                 <div class="strategy-grid">
-                                    <div class="strat-card">
+                                    <div id="comp-pricing-card" class="strat-card">
                                         <h4 class="staff-role-title" style="margin-bottom:15px;">🏷️ Estrategia de Precio</h4>
                                         <p style="font-size:0.85rem; color:#94a3b8; margin-bottom:5px;">Base Mercado: ${formatCurrency(baseTicket)}</p>
                                         <p style="font-size:0.85rem; color:#facc15; margin-bottom:15px;">Equilibrio (Rep. ${co.reputation.toFixed(1)}): <strong>${formatCurrency(equiPrice)}</strong></p>
@@ -8457,7 +8768,7 @@ const UI = {
                                             <button onclick="updatePrice()" class="btn-sm" style="background:#38bdf8; color:#0f172a; border:none; padding:6px 15px;">Fijar</button>
                                         </div>
                                     </div>
-                                    <div class="strat-card highlight">
+                                    <div id="comp-reputation-card" class="strat-card highlight">
                                         <h4 class="staff-role-title">📊 Análisis de Reputación</h4>
                                         <div class="analysis-box">
                                             <div class="data-row strong">
@@ -8494,7 +8805,7 @@ const UI = {
                                     </div>
                                 </div>
                                 
-                                <h3 style="border-bottom:1px solid #334155; padding-bottom:10px; margin: 25px 0 20px 0;">📦 Proveedores (Insumos)</h3>
+                                <h3 id="comp-providers-section" style="border-bottom:1px solid #334155; padding-bottom:10px; margin: 25px 0 20px 0;">📦 Proveedores (Insumos)</h3>
                                 <div class="options-grid">${provOpts}</div>
                             </div>
                         `;
@@ -8536,7 +8847,7 @@ const UI = {
 
                     const strategyHTML = `
                                 <div class="comp-dash-container">
-                                    <div style="
+                                    <div id="comp-marketing-infra-card" style="
                                         background: linear-gradient(145deg, rgba(251, 191, 36, 0.1), rgba(245, 158, 11, 0.05));
                                         border: 1px solid rgba(251, 191, 36, 0.3);
                                         border-radius: 16px;
@@ -8639,10 +8950,10 @@ const UI = {
                                         </div>
                                     </div>
                                     
-                                    <h3 style="border-bottom:1px solid #334155; padding-bottom:10px; margin-bottom:20px; font-size: 1.1rem;">📡 Canales de Publicidad</h3>
+                                    <h3 id="comp-marketing-channels-section" style="border-bottom:1px solid #334155; padding-bottom:10px; margin-bottom:20px; font-size: 1.1rem;">📡 Canales de Publicidad</h3>
                                     <div class="options-grid" style="margin-bottom:25px; display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 15px;">${mktOpts}</div>
 
-                                    <div class="strat-card highlight">
+                                    <div id="comp-marketing-analysis-card" class="strat-card highlight">
                                         <h4 class="staff-role-title" style="color:#38bdf8;">📈 Análisis de Demanda</h4>
                                         <div class="analysis-box" style="display:grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap:15px;">
                                             <div class="data-row"><span>Base:</span> <strong>${comp.base}</strong></div>
