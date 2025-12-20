@@ -5845,7 +5845,56 @@ const UI = {
 
             if (res.success) {
                 modal.style.display = 'none';
-                showGameAlert(`¡Enhorabuena! Has fundado ${state.name}.\n\nRevisa tu panel de control en la pestaña Trabajo.`, 'success', '🏢 Empresa Fundada');
+                UI.showModal('¡EMPRESA FUNDADA!', `
+                    <div style="text-align:center;">
+                        <div style="font-size:4rem; margin-bottom:10px; animation: bounceIn 0.8s;">🏢</div>
+                        <h3 style="color:#facc15; font-size:1.6rem; margin:0 0 5px 0; text-shadow:0 0 10px rgba(250, 204, 21, 0.4);">¡Enhorabuena!</h3>
+                        <p style="color:#cbd5e1; font-size:1.1rem; margin-bottom:20px;">Has fundado <strong style="color:#fff;">${state.name}</strong></p>
+                        
+                        <div style="text-align:left; background:rgba(15, 23, 42, 0.6); border:1px solid #334155; border-radius:12px; padding:20px;">
+                            <p style="color:#94a3b8; font-size:0.9rem; margin-bottom:15px; text-transform:uppercase; letter-spacing:1px; font-weight:700;">Panel de Control:</p>
+                            
+                            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:15px;">
+                                <div style="display:flex; align-items:center;">
+                                    <span style="font-size:1.5rem; margin-right:10px;">📊</span>
+                                    <div>
+                                        <div style="color:#e2e8f0; font-weight:700; font-size:0.95rem;">Resumen</div>
+                                        <div style="color:#64748b; font-size:0.8rem;">Visión general</div>
+                                    </div>
+                                </div>
+                                <div style="display:flex; align-items:center;">
+                                    <span style="font-size:1.5rem; margin-right:10px;">👥</span>
+                                    <div>
+                                        <div style="color:#e2e8f0; font-weight:700; font-size:0.95rem;">Personal</div>
+                                        <div style="color:#64748b; font-size:0.8rem;">Equipo y RRHH</div>
+                                    </div>
+                                </div>
+                                <div style="display:flex; align-items:center;">
+                                    <span style="font-size:1.5rem; margin-right:10px;">📦</span>
+                                    <div>
+                                        <div style="color:#e2e8f0; font-weight:700; font-size:0.95rem;">Producto</div>
+                                        <div style="color:#64748b; font-size:0.8rem;">Control de Calidad</div>
+                                    </div>
+                                </div>
+                                <div style="display:flex; align-items:center;">
+                                    <span style="font-size:1.5rem; margin-right:10px;">📣</span>
+                                    <div>
+                                        <div style="color:#e2e8f0; font-weight:700; font-size:0.95rem;">Marketing</div>
+                                        <div style="color:#64748b; font-size:0.8rem;">Campañas Publicidad</div>
+                                    </div>
+                                </div>
+                                <div style="display:flex; align-items:center; grid-column: span 2;">
+                                    <span style="font-size:1.5rem; margin-right:10px;">💰</span>
+                                    <div>
+                                        <div style="color:#e2e8f0; font-weight:700; font-size:0.95rem;">Finanzas</div>
+                                        <div style="color:#64748b; font-size:0.8rem;">Salario CEO</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <p style="color:#94a3b8; font-size:0.9rem; margin-top:20px;">Tu aventura empresarial comienza ahora.</p>
+                    </div>
+                `, [{ text: '🚀 Ir al Panel de Control', style: 'success', fn: null }], true);
                 UI.updateHeader();
                 UI.updateJob(JobSystem);
                 UI.updateDashboard();
