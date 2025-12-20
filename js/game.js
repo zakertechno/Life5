@@ -9384,10 +9384,41 @@ try {
             const welcomeModal = document.querySelector('.custom-modal-overlay');
             if (welcomeModal) welcomeModal.remove();
 
-            // Then show confirmation modal
-            UI.confirmModal('Nueva Partida', '¿Estás seguro de que quieres iniciar una nueva partida? Tu progreso no guardado se perderá.', () => {
+            // Premium styled confirmation modal
+            const confirmMsg = `
+                <style>
+                    .custom-modal-box h3 { display: none !important; }
+                    .custom-modal-box .modal-body { padding: 0 !important; }
+                    .custom-modal-box { max-width: 400px !important; border-radius: 20px !important; overflow: hidden !important; border: 1px solid #334155 !important; }
+                    .confirm-container { padding: 30px; text-align: center; background: linear-gradient(180deg, #0f172a 0%, #1e293b 100%); }
+                    .confirm-icon { font-size: 3rem; margin-bottom: 15px; display: block; }
+                    .confirm-title { color: #f87171; margin: 0 0 10px; font-size: 1.3rem; font-weight: 700; }
+                    .confirm-text { color: #94a3b8; font-size: 0.95rem; line-height: 1.5; margin-bottom: 25px; }
+                    .confirm-buttons { display: flex; gap: 12px; }
+                    .btn-confirm-cancel { flex: 1; padding: 12px; background: transparent; border: 2px solid #475569; border-radius: 10px; color: #94a3b8; font-weight: 600; cursor: pointer; transition: all 0.2s; }
+                    .btn-confirm-cancel:hover { border-color: #64748b; color: #e2e8f0; }
+                    .btn-confirm-action { flex: 1; padding: 12px; background: linear-gradient(135deg, #f87171, #ef4444); border: none; border-radius: 10px; color: white; font-weight: 700; cursor: pointer; transition: all 0.2s; }
+                    .btn-confirm-action:hover { transform: scale(1.02); }
+                    .custom-modal-footer { display: none !important; }
+                </style>
+                <div class="confirm-container">
+                    <span class="confirm-icon">⚠️</span>
+                    <h2 class="confirm-title">Nueva Partida</h2>
+                    <p class="confirm-text">¿Estás seguro de que quieres iniciar una nueva partida?<br>Tu progreso no guardado se perderá.</p>
+                    <div class="confirm-buttons">
+                        <button id="btn-confirm-cancel" class="btn-confirm-cancel">Cancelar</button>
+                        <button id="btn-confirm-action" class="btn-confirm-action">Confirmar</button>
+                    </div>
+                </div>
+            `;
+
+            UI.showModal(' ', confirmMsg, [], true);
+
+            document.getElementById('btn-confirm-cancel').onclick = () => location.reload();
+            document.getElementById('btn-confirm-action').onclick = () => {
+                document.querySelector('.custom-modal-overlay').remove();
                 promptNewUser(initGame);
-            });
+            };
         };
 
     } else {

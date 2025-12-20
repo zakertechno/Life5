@@ -16,12 +16,11 @@
         <div class="modal-content">
             <span class="close" id="close-modal">&times;</span>
             <h2 id="modal-stock-name">Stock Name (SYM)</h2>
-            <p id="modal-stock-price" class="highlight" style="font-size:1.5rem">100 €</p>
-            <div style="background:#0f172a; padding:10px; border-radius:8px; margin:15px 0;">
-                <canvas id="modal-stock-chart" width="500" height="200" style="width:100%"></canvas>
+            <p id="modal-stock-price" class="highlight">100 €</p>
+            <div class="stock-chart-container">
+                <canvas id="modal-stock-chart" width="500" height="200"></canvas>
             </div>
-            <div class="stock-fundamentals"
-                style="display:grid; grid-template-columns: 1fr 1fr; gap:10px; font-size:0.9rem;">
+            <div class="stock-fundamentals">
                 <div><small>Bº Por Acción (BPA)</small><br><span id="modal-stock-earnings"></span></div>
                 <div><small>Volatilidad</small><br><span id="modal-stock-volatility"></span></div>
                 <div><small>PER (Precio/Beneficio)</small><br><span id="modal-stock-per"></span></div>
@@ -73,7 +72,7 @@
                     <!-- STEP 1: MODEL & CONCEPT -->
                     <div id="wizard-step-1" class="wizard-step active">
                         <h3 class="step-header">
-                            <span style="font-size: 1.5rem;">📋</span> Define tu Modelo de Negocio
+                            <span class="wiz-icon-lg">📋</span> Define tu Modelo de Negocio
                         </h3>
 
                         <div class="wiz-form-group">
@@ -82,9 +81,8 @@
                                 placeholder="Ej. Nexus Innovations, Café Altura...">
                         </div>
 
-                        <p
-                            style="color: #94a3b8; font-size: 0.9rem; margin-bottom: 15px; display: flex; align-items: center; gap: 8px;">
-                            <span style="font-size: 1.2rem;">🎯</span> Selecciona tu vehículo de inversión:
+                        <p class="wiz-instruction-text">
+                            <span class="wiz-icon-md">🎯</span> Selecciona tu vehículo de inversión:
                         </p>
                         <div id="wiz-types-grid" class="wiz-cards-grid">
                             <!-- Injected JS -->
@@ -92,11 +90,11 @@
                     </div>
 
                     <!-- STEP 2: LOCATION STRATEGY -->
-                    <div id="wizard-step-2" class="wizard-step" style="display:none;">
+                    <div id="wizard-step-2" class="wizard-step wiz-step-hidden">
                         <h3 class="step-header">
-                            <span style="font-size: 1.5rem;">📍</span> Estrategia de Ubicación (HQ)
+                            <span class="wiz-icon-lg">📍</span> Estrategia de Ubicación (HQ)
                         </h3>
-                        <p style="color: #94a3b8; margin-bottom: 20px; font-size: 0.9rem;">Elige donde establecer tu
+                        <p class="wiz-instruction-text">Elige donde establecer tu
                             sede. El tráfico determina tu techo de ingresos inicial.</p>
 
                         <div id="wiz-loc-grid" class="wiz-cards-grid loc-grid">
@@ -105,8 +103,7 @@
                     </div>
 
                     <!-- MOBILE NAVIGATION BUTTONS -->
-                    <div id="mobile-wiz-buttons" class="mobile-wiz-buttons"
-                        style="display: none; margin-top: 20px; gap: 10px;">
+                    <div id="mobile-wiz-buttons" class="mobile-wiz-buttons wiz-step-hidden">
                         <button id="btn-wiz-back-mobile" class="btn-wiz-back">← Atrás</button>
                         <button id="btn-wiz-next-mobile" class="btn-wiz-next">Siguiente ➡️</button>
                     </div>
@@ -116,7 +113,7 @@
                 <!-- Sidebar: Investment Summary -->
                 <div class="wizard-sidebar">
                     <h4 class="sidebar-title">
-                        <span style="font-size: 1.2rem;">💰</span> Resumen de Capital
+                        <span class="wiz-icon-md">💰</span> Resumen de Capital
                     </h4>
 
                     <div class="cash-display-card">
@@ -124,7 +121,7 @@
                         <strong id="wiz-current-cash" class="cash-value">0 €</strong>
                     </div>
 
-                    <div style="flex: 1;">
+                    <div class="wizard-sidebar-flex">
                         <div class="cost-breakdown-card">
                             <div class="cost-row">
                                 <span>🏢 Setup</span>
@@ -157,29 +154,22 @@
 
     <div id="app">
         <!-- Game Title - Premium Design -->
-        <div id="top-bar-container"
-            style="text-align:center; padding:12px 20px; background: linear-gradient(135deg, #0f172a, #1e293b, #0f172a); border-bottom: 2px solid transparent; background-clip: padding-box; position: relative; display: flex; align-items: center; justify-content: center;">
-            <div
-                style="position: absolute; inset: 0; border-bottom: 2px solid; border-image: linear-gradient(90deg, transparent, #facc15, #f59e0b, #facc15, transparent) 1;">
-            </div>
+        <div id="top-bar-container">
+            <!-- Border decoration handled by CSS ::after -->
 
-            <!-- DESKTOP LEFT: User -->
-            <button id="desktop-home-btn" class="home-btn desktop-only-btn"
-                onclick="document.querySelector('.nav-btn[data-view=&quot;dashboard&quot;]').click()"
-                style="position: absolute; left: 20px; z-index: 10;">
+            <button id="desktop-home-btn" class="home-btn desktop-only-btn desktop-btn-left"
+                onclick="document.querySelector('.nav-btn[data-view=&quot;dashboard&quot;]').click()">
                 <span class="home-icon">🏠</span>
-                <div id="header-player-name-desktop" style="font-weight: 700; color: #fbbf24; margin-left:8px;">Jugador
+                <div id="header-player-name-desktop">Jugador
                 </div>
             </button>
 
-            <h1
-                style="margin: 0; font-size: 1.4rem; font-weight: 800; letter-spacing: 3px; text-transform: uppercase; background: linear-gradient(90deg, #fcd34d, #facc15, #f59e0b, #facc15, #fcd34d); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; text-shadow: none; filter: drop-shadow(0 0 10px rgba(250, 204, 21, 0.3));">
+            <h1 class="game-title-main">
                 🎮 El Juego de Sergio 🎮
             </h1>
 
-            <!-- DESKTOP RIGHT: Save -->
-            <button id="desktop-save-btn" class="save-btn desktop-only-btn" onclick="PersistenceModule.showSaveModal()"
-                style="position: absolute; right: 20px; z-index: 10;">
+            <button id="desktop-save-btn" class="save-btn desktop-only-btn desktop-btn-right"
+                onclick="PersistenceModule.showSaveModal()">
                 <span>💾</span>
                 <span>Guardar</span>
             </button>
@@ -211,8 +201,8 @@
                 <div class="money-card">
                     <span class="money-icon">💰</span>
                     <div>
-                        <div id="money-display">10.000 €</div>
-                        <div id="date-display">Mes 1, Año 1</div>
+                        <div id="money-display">---</div>
+                        <div id="date-display">---</div>
                     </div>
                 </div>
             </div>
@@ -247,7 +237,7 @@
         </nav>
 
         <main>
-            <nav id="main-nav" class="desktop-nav" style="display:flex; align-items:center; gap:5px; padding-right:0;">
+            <nav id="main-nav" class="desktop-nav">
                 <button class="nav-btn active" data-view="dashboard">📊 Resumen</button>
                 <button class="nav-btn" data-view="education">🎓 Formación</button>
                 <button class="nav-btn" data-view="lifestyle">💸 Gastos</button>
@@ -264,32 +254,26 @@
                     <div class="stats-grid">
                         <div class="stat-card">
                             <h3>Patrimonio Neto</h3>
-                            <p id="net-worth">1,000 €</p>
+                            <p id="net-worth">---</p>
                         </div>
                         <div class="stat-card">
                             <h3>Ingresos Mensuales</h3>
-                            <p id="monthly-income">0 €</p>
+                            <p id="monthly-income">---</p>
                         </div>
                         <div class="stat-card">
                             <h3>Gastos Mensuales</h3>
-                            <p id="monthly-expenses">0 €</p>
+                            <p id="monthly-expenses">---</p>
                         </div>
                         <div class="stat-card">
                             <h3>Edad</h3>
-                            <p id="age-display">18 años</p>
+                            <p id="age-display">---</p>
                         </div>
                     </div>
 
-                    <div class="chart-container"
-                        style="margin-top: 30px; background: var(--card-bg); padding: 15px; border-radius: 12px; border: 1px solid #334155;">
+                    <div class="chart-container">
                         <h3>Evolución Patrimonio</h3>
-                        <canvas id="net-worth-chart" width="800" height="300"
-                            style="width: 100%; height: auto;"></canvas>
+                        <canvas id="net-worth-chart" width="800" height="300"></canvas>
                     </div>
-
-                    <button id="dashboard-next-btn" class="btn-premium-3d" style="width: 100%; margin-top: 30px;">
-                        Siguiente Mes ▶
-                    </button>
                 </div>
 
                 <div id="market-view" class="view">
@@ -397,8 +381,7 @@
                         </div>
 
                         <!-- NEW: Job Market -->
-                        <div class="job-market-panel"
-                            style="margin-top: 20px; border-top: 1px solid #334155; padding-top: 20px;">
+                        <div class="job-market-panel">
                             <h3>Mercado Laboral (Otras Vacantes)</h3>
                             <div id="job-market-list" class="listings-grid">
                                 <!-- Job Offers injected here -->
@@ -409,7 +392,7 @@
 
                 <div id="education-view" class="view">
                     <h2>Formación y Estudios</h2>
-                    <div class="education-container" style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                    <div class="education-container">
                         <div class="current-edu-panel">
                             <h3>Tu Formación</h3>
                             <div id="current-education-list">
