@@ -1779,16 +1779,22 @@ const CompanyModule = {
 
     sellPassiveCompany(index) {
         const co = GameState.ownedCompanies[index];
-        if (!co) return;
+        if (!co) return { success: false, message: 'Empresa no encontrada.' };
 
-        const valuation = Math.floor(co.baselineProfit * 12 * 5);
+        const valuation = Math.floor(co.baselineProfit * 12 * 5); // 5x Annual Profit
+        const taxRate = 0.25;
+        const taxes = Math.floor(valuation * taxRate);
+        const netAmount = valuation - taxes;
 
-        if (confirm(`¿Vender ${co.name} por ${formatCurrency(valuation)}? (5x Beneficio Anual)`)) {
-            GameState.cash += valuation;
-            GameState.ownedCompanies.splice(index, 1);
-            showGameAlert(`Has vendido ${co.name}. ${formatCurrency(valuation)} transferidos a tu cuenta personal.`, 'success', '🏢 Empresa Vendida');
-            UI.updateJob(JobSystem);
-        }
+        GameState.cash += netAmount;
+        GameState.ownedCompanies.splice(index, 1);
+
+        // Track tax payment if needed, or just deduct it.
+        // Returning detailed message for the user.
+        return {
+            success: true,
+            message: `✅ Venta realizada: ${formatCurrency(valuation)}\n<span style="color:#ef4444">🏛️ Impuestos (Estado 25%): -${formatCurrency(taxes)}</span>\n💰 Ingreso Neto: ${formatCurrency(netAmount)}`
+        };
     },
 
     nextTurn() {
@@ -1910,8 +1916,13 @@ const CompanyModule = {
         const capacity = Math.floor(totalProductivity * type.productivityPerStaff);
         const actualCustomers = Math.min(demand, capacity);
 
-        if (demand > capacity && co.staff.length < 15) {
-            co.events.push(`⚠️ Necesitas más empleados.`);
+        if (demand > capacity) {
+            const locationMaxStaff = loc?.maxStaff || 15;
+            if (co.staff.length >= co.maxStaff && co.maxStaff >= locationMaxStaff) {
+                co.events.push(`⚠️ Has llegado al límite de empleados.`);
+            } else {
+                co.events.push(`⚠️ Necesitas más empleados.`);
+            }
         }
 
         const baseTicket = type.baseTicket;
@@ -2041,6 +2052,15 @@ const CompanyModule = {
         if (GameState.company.cash < amount) return { success: false, message: 'No hay suficiente caja.' };
         GameState.company.cash -= amount;
         GameState.cash += amount;
+
+        // Track for tax declaration (renta)
+        if (GameState.currentYearIncome) {
+            GameState.currentYearIncome.company += amount;
+        }
+        if (GameState.lifetimeStats && GameState.lifetimeStats.totalIncome) {
+            GameState.lifetimeStats.totalIncome.company += amount;
+        }
+
         return { success: true, message: `Retirados ${formatCurrency(amount)}.` };
     },
 
@@ -6021,7 +6041,7 @@ const UI = {
             }
 
             // Premium button styles - 3D style with pink/violet colors
-            const btnStyle = `width: 100%; padding: 14px 24px; background: linear-gradient(135deg, #ec4899, #db2777); color: white; border: none; border-radius: 12px; font-weight: 800; font-size: 1rem; text-transform: uppercase; letter-spacing: 0.5px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 6px 0 #9d174d, 0 10px 20px rgba(236, 72, 153, 0.4); transform: translateY(-2px); transition: all 0.15s;${isTutorialForce ? ' animation: pulse 1.5s infinite;' : ''}`;
+            const btnStyle = `width: 100%; padding: 12px 20px; background: linear-gradient(135deg, #ec4899, #db2777); color: white; border: none; border-radius: 12px; font-weight: 800; font-size: 0.9rem; text-transform: uppercase; letter-spacing: 0.5px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 6px 0 #9d174d, 0 10px 20px rgba(236, 72, 153, 0.4); transform: translateY(-2px); transition: all 0.15s;${isTutorialForce ? ' animation: pulse 1.5s infinite;' : ''}`;
 
             // Locked overlay
             const lockOverlay = isCategoryLocked ? `
@@ -6060,10 +6080,10 @@ const UI = {
                     ${nextItem && !isCategoryLocked ? `
                         <button class="btn-upgrade-lifestyle ${isTutorialForce ? 'tutorial-highlight' : ''}" data-cat="${catKey}" data-next-id="${nextItem.id}" style="${btnStyle}">
                             <span style="display: flex; align-items: center; gap: 8px;">
-                                <span style="font-size: 1.3rem;">⬆️</span>
+                                <span style="font-size: 1.1rem;">⬆️</span>
                                 <span>Mejorar a Nivel ${levelNum + 1}</span>
                             </span>
-                            <span style="text-align: right; font-size: 0.85rem; font-weight: 600;">
+                            <span style="text-align: right; font-size: 0.75rem; font-weight: 600;">
                                 ${nextItem.name}<br>
                                 <span style="opacity: 0.85;">${formatCurrency(nextItem.cost)}/mes ${upfrontInfo}</span>
                             </span>
@@ -6121,7 +6141,49 @@ const UI = {
                 if (GameState.tutorialState.forceHousing && nextId === 'sofa') {
                     performUpdate();
                 } else {
-                    UI.confirmModal('Mejorar Nivel de Vida', `¿Subir ${cat.label} a:\n\n${item.name}\nCoste: ${formatCurrency(item.cost)}/mes?${costMsg}`, performUpdate);
+                    const currentId = GameState.lifestyle[catKey];
+                    const currentItem = cat.items.find(i => i.id === currentId) || cat.items[0];
+
+                    UI.showModal('Mejorar Nivel de Vida', `
+                        <div style="text-align:center;">
+                            <div style="font-size:3rem; margin-bottom:10px;">✨</div>
+                            <h3 style="color:#fbbf24; margin:0 0 5px 0;">${cat.label}</h3>
+                            <p style="color:#94a3b8; font-size:0.9rem; margin-bottom:20px;">¿Deseas mejorar tu calidad de vida?</p>
+
+                            <div style="background:rgba(15, 23, 42, 0.5); border-radius:12px; padding:15px; margin-bottom:20px; border:1px solid #334155;">
+                                <!-- Comparison -->
+                                <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:15px; padding-bottom:15px; border-bottom:1px solid #334155;">
+                                    <div style="text-align:left; width:45%;">
+                                        <div style="font-size:0.75rem; color:#64748b; margin-bottom:4px;">ACTUAL</div>
+                                        <div style="font-weight:700; color:#cbd5e1; font-size:0.9rem;">${currentItem.name}</div>
+                                        <div style="color:#94a3b8; font-size:0.8rem;">${formatCurrency(currentItem.cost)}/mes</div>
+                                    </div>
+                                    <div style="color:#fbbf24; font-size:1.2rem;">➔</div>
+                                    <div style="text-align:right; width:45%;">
+                                        <div style="font-size:0.75rem; color:#fbbf24; margin-bottom:4px;">NUEVO NIVEL</div>
+                                        <div style="font-weight:800; color:#fff; font-size:0.95rem;">${item.name}</div>
+                                        <div style="color:#4ade80; font-weight:700; font-size:0.85rem;">${formatCurrency(item.cost)}/mes</div>
+                                    </div>
+                                </div>
+                                
+                                <!-- Upfront Cost if any -->
+                                ${upfront > 0 ? `
+                                <div style="background:rgba(239, 68, 68, 0.1); border:1px solid rgba(239, 68, 68, 0.3); border-radius:8px; padding:10px;">
+                                    <div style="color:#ef4444; font-weight:700; font-size:0.85rem; margin-bottom:2px;">❗ PAGO INICIAL REQUERIDO</div>
+                                    <div style="color:#fff; font-weight:700;">${formatCurrency(upfront)}</div>
+                                    <div style="color:#cbd5e1; font-size:0.75rem;">${upfrontLabel}</div>
+                                </div>
+                                ` : ''}
+
+                                <div style="margin-top:15px; font-size:0.85rem; color:#94a3b8; font-style:italic;">
+                                    "${item.desc}"
+                                </div>
+                            </div>
+                        </div>
+                    `, [
+                        { text: 'Cancelar', style: 'secondary', fn: null },
+                        { text: 'MEJORAR', style: 'primary', fn: performUpdate }
+                    ], true);
                 }
             };
         });
@@ -6562,14 +6624,49 @@ const UI = {
                     btnSell.onmouseleave = () => { btnSell.style.background = 'rgba(239, 68, 68, 0.1)'; btnSell.style.color = '#ef4444'; };
 
                     div.querySelector('.btn-sell-passive').onclick = () => {
-                        UI.confirmModal('Vender Empresa', `¿Seguro que quieres vender ${co.name}?\n\nValoración: 5x Beneficio anual.`, () => {
-                            const res = CompanyModule.sellPassiveCompany(idx);
-                            if (res && res.success) {
-                                UI.updateJob(JobSys);
-                                UI.updateDashboard();
-                                showGameAlert(res.message, res.success ? 'success' : 'error');
+                        const annualProfit = co.baselineProfit * 12;
+                        const valuation = annualProfit * 5;
+
+                        UI.showModal('Vender Empresa', `
+                            <div style="text-align:center;">
+                                <div style="font-size:3rem; margin-bottom:10px; filter: grayscale(1);">📉</div>
+                                <p style="color:#cbd5e1; margin-bottom:20px; font-size:1rem;">Estás a punto de liquidar tu participación en <strong style="color:#fff;">${co.name}</strong>.</p>
+                                
+                                <div style="background:rgba(15, 23, 42, 0.6); padding:20px; border-radius:16px; margin-bottom:20px; border:1px solid #334155;">
+                                    <div style="display:flex; justify-content:space-between; margin-bottom:10px;">
+                                        <span style="color:#94a3b8;">Beneficio Base Mes:</span>
+                                        <span style="color:#e2e8f0; font-family:monospace;">${formatCurrency(co.baselineProfit)}</span>
+                                    </div>
+                                    <div style="display:flex; justify-content:space-between; margin-bottom:15px;">
+                                        <span style="color:#94a3b8;">Proyección Anual (x12):</span>
+                                        <span style="color:#e2e8f0; font-family:monospace;">${formatCurrency(annualProfit)}</span>
+                                    </div>
+                                    <div style="border-top:1px dashed #475569; margin:10px 0;"></div>
+                                    <div style="display:flex; justify-content:space-between; align-items:center; margin-top:15px;">
+                                        <span style="color:#fbbf24; font-weight:700; text-transform:uppercase; font-size:0.9rem;">VALORACIÓN (x5)</span>
+                                        <span style="color:#fbbf24; font-weight:800; font-size:1.3rem;">${formatCurrency(valuation)}</span>
+                                    </div>
+                                </div>
+                                
+                                <p style="font-size:0.85rem; color:#ef4444; background: rgba(239, 68, 68, 0.1); padding: 10px; border-radius: 8px;">
+                                    ⚠️ <strong>Atención:</strong> La venta está sujeta a impuestos estatales del 25% sobre el valor total.
+                                </p>
+                            </div>
+                        `, [
+                            { text: 'Cancelar', style: 'secondary', fn: null },
+                            {
+                                text: 'VENDER AHORA',
+                                style: 'danger',
+                                fn: () => {
+                                    const res = CompanyModule.sellPassiveCompany(idx);
+                                    if (res && res.success) {
+                                        UI.updateJob(JobSys);
+                                        UI.updateDashboard();
+                                        showGameAlert(res.message, res.success ? 'success' : 'error');
+                                    }
+                                }
                             }
-                        });
+                        ], true);
                     };
                     holdingList.appendChild(div);
                 });
@@ -7271,7 +7368,8 @@ const UI = {
                 const co = GameState.company;
                 const activeTab = jobContainer.dataset.activeTab || 'summary';
 
-                contentContainer.innerHTML = `
+                const coDash = document.createElement('div');
+                coDash.innerHTML = `
                         <div class="company-dashboard">
                             <!-- Company Hero Header - Premium Design -->
                             <div style="background: linear-gradient(145deg, rgba(251, 191, 36, 0.12), rgba(245, 158, 11, 0.05)); border: 1px solid rgba(251, 191, 36, 0.3); border-radius: 20px; padding: 25px; position: relative; overflow: hidden; margin-bottom: 20px;">
@@ -7341,6 +7439,7 @@ const UI = {
                             </div>
                         </div>
                     `;
+                contentContainer.appendChild(coDash);
 
 
                 contentContainer.querySelectorAll('.tab-btn').forEach(btn => {
