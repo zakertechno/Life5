@@ -3486,39 +3486,40 @@ const TutorialSystem = {
                         targetSelector = 'button[data-view="dashboard"]';
                     }
 
-                    // Force User to find the Dashboard Button manually
-                    this.showOverlay();
-
                     if (targetBtn && targetSelector) {
-                        this.addHighlight(targetSelector);
+                        // Delay 2 seconds before showing overlay and tooltip
+                        setTimeout(() => {
+                            window.scrollTo({ top: 0, behavior: 'smooth' });
+                            this.showOverlay();
+                            this.addHighlight(targetSelector);
 
-                        // Add Tooltip
-                        const rect = targetBtn.getBoundingClientRect();
-                        const isMobile = window.innerWidth <= 768; // CSS breakpoint usually
+                            // Add Tooltip
+                            const rect = targetBtn.getBoundingClientRect();
+                            const isMobile = window.innerWidth <= 768; // CSS breakpoint usually
 
-                        const tip = document.createElement('div');
-                        tip.className = 'tutorial-tooltip';
-                        tip.innerHTML = `
+                            const tip = document.createElement('div');
+                            tip.className = 'tutorial-tooltip';
+                            tip.innerHTML = `
                             <div style="font-weight:700; margin-bottom:5px;">🏠 Tu Centro de Mando</div>
-                            <div>Pulsa el icono de CASA para ver el resumen.</div>
+                            <div>Pulsa el icono 🏠 para ver el resumen.</div>
                             <div class="tooltip-arrow"></div>
                         `;
-                        tip.style.position = 'fixed';
-                        tip.style.zIndex = '10002';
+                            tip.style.position = 'fixed';
+                            tip.style.zIndex = '10002';
 
-                        // Positioning
-                        if (isMobile) {
-                            // Mobile: Header is top. Button is top-left.
-                            // Place tooltip BELOW the button.
-                            tip.style.top = (rect.bottom + 15) + 'px';
-                            tip.style.left = '20px';
-                            tip.style.maxWidth = '250px'; // Limit width
+                            // Positioning
+                            if (isMobile) {
+                                // Mobile: Header is top. Button is top-left.
+                                // Place tooltip BELOW the button.
+                                tip.style.top = (rect.bottom + 15) + 'px';
+                                tip.style.left = '20px';
+                                tip.style.maxWidth = '250px'; // Limit width
 
-                            // GUIDING ARROW (User request: show arrow if scroll is down)
-                            const upArrow = document.createElement('div');
-                            upArrow.className = 'tutorial-up-arrow';
-                            upArrow.innerHTML = '⬆️ Arriba';
-                            upArrow.style.cssText = `
+                                // GUIDING ARROW (User request: show arrow if scroll is down)
+                                const upArrow = document.createElement('div');
+                                upArrow.className = 'tutorial-up-arrow';
+                                upArrow.innerHTML = '⬆️ Arriba';
+                                upArrow.style.cssText = `
                                 position: fixed;
                                 bottom: 20px;
                                 left: 50%;
@@ -3533,66 +3534,67 @@ const TutorialSystem = {
                                 animation: bounce 1s infinite;
                                 cursor: pointer;
                             `;
-                            upArrow.onclick = () => window.scrollTo({ top: 0, behavior: 'smooth' });
-                            document.body.appendChild(upArrow);
+                                upArrow.onclick = () => window.scrollTo({ top: 0, behavior: 'smooth' });
+                                document.body.appendChild(upArrow);
 
-                            // Store reference to remove it later
-                            this._tempArrow = upArrow;
+                                // Store reference to remove it later
+                                this._tempArrow = upArrow;
 
-                        } else {
-                            // Desktop
-                            // Top bar button? or Sidebar?
-                            if (targetSelector === '#desktop-home-btn') {
-                                tip.style.top = (rect.bottom + 15) + 'px';
-                                tip.style.left = (rect.left) + 'px';
                             } else {
-                                // Sidebar
-                                tip.style.left = (rect.right + 15) + 'px';
-                                tip.style.top = (rect.top) + 'px';
-                            }
-                        }
-
-                        document.body.appendChild(tip);
-
-                        // ONE-TIME CLICK LISTENER
-                        const continueTutorial = (e) => {
-                            // Helper to check if clicked inside target
-                            if (e.target.closest && e.target.closest(targetSelector)) {
-                                document.removeEventListener('click', continueTutorial, true);
-                                tip.remove();
-
-                                // REMOVE ARROW IF IT EXISTS
-                                if (this._tempArrow) {
-                                    this._tempArrow.remove();
-                                    this._tempArrow = null;
+                                // Desktop
+                                // Top bar button? or Sidebar?
+                                if (targetSelector === '#desktop-home-btn') {
+                                    tip.style.top = (rect.bottom + 15) + 'px';
+                                    tip.style.left = (rect.left) + 'px';
+                                } else {
+                                    // Sidebar
+                                    tip.style.left = (rect.right + 15) + 'px';
+                                    tip.style.top = (rect.top) + 'px';
                                 }
-
-                                this.removeHighlights();
-
-                                setTimeout(() => {
-                                    this.showOverlay();
-
-                                    // Continue to Net Worth
-                                    setTimeout(() => {
-                                        const netWorth = document.querySelector('.metric-card.net-worth');
-                                        if (netWorth) this.addHighlight('.metric-card.net-worth');
-
-                                        this.showTooltip(
-                                            '.metric-card.net-worth',
-                                            '💰 Patrimonio Neto',
-                                            'Dinero + Activos - Deudas.',
-                                            'Siguiente',
-                                            () => {
-                                                this.removeHighlights();
-                                                this.hideTooltip();
-                                                this.continueToMonthlyFlow();
-                                            }
-                                        );
-                                    }, 500);
-                                }, 300);
                             }
-                        };
-                        document.addEventListener('click', continueTutorial);
+
+                            document.body.appendChild(tip);
+
+                            // ONE-TIME CLICK LISTENER
+                            const continueTutorial = (e) => {
+                                // Helper to check if clicked inside target
+                                if (e.target.closest && e.target.closest(targetSelector)) {
+                                    document.removeEventListener('click', continueTutorial, true);
+                                    tip.remove();
+
+                                    // REMOVE ARROW IF IT EXISTS
+                                    if (this._tempArrow) {
+                                        this._tempArrow.remove();
+                                        this._tempArrow = null;
+                                    }
+
+                                    this.removeHighlights();
+
+                                    setTimeout(() => {
+                                        this.showOverlay();
+
+                                        // Continue to Net Worth
+                                        setTimeout(() => {
+                                            const netWorth = document.querySelector('.metric-card.net-worth');
+                                            if (netWorth) this.addHighlight('.metric-card.net-worth');
+
+                                            this.showTooltip(
+                                                '.metric-card.net-worth',
+                                                '💰 Patrimonio Neto',
+                                                'Dinero + Activos - Deudas.',
+                                                'Siguiente',
+                                                () => {
+                                                    this.removeHighlights();
+                                                    this.hideTooltip();
+                                                    this.continueToMonthlyFlow();
+                                                }
+                                            );
+                                        }, 500);
+                                    }, 300);
+                                }
+                            };
+                            document.addEventListener('click', continueTutorial);
+                        }, 2000); // 2 second delay
                     } else {
                         // Safe fallback
                         this.continueToMonthlyFlow();
@@ -5942,11 +5944,11 @@ const UI = {
 
         if (!GameState.expensesUnlocked) {
             container.innerHTML = `
-                        <div class="empty-state">
-                            <h3>Aún no eres independiente</h3>
-                            <p>Esta pestaña se desbloqueará cuando te mudes de casa de tus padres.</p>
-                        </div>
-                    `;
+                <div class="empty-state">
+                    <h3>Aún no eres independiente</h3>
+                    <p>Esta pestaña se desbloqueará cuando te mudes de casa de tus padres.</p>
+                </div>
+            `;
             return;
         }
 
@@ -5955,183 +5957,171 @@ const UI = {
 
         // HERO - Premium Design
         const heroHTML = `
-                    <div class="lifestyle-hero" style="background: linear-gradient(145deg, rgba(236, 72, 153, 0.15), rgba(219, 39, 119, 0.05)); border: 1px solid rgba(236, 72, 153, 0.3); border-radius: 20px; padding: 25px; position: relative; overflow: hidden;">
-                        <div style="position: absolute; top: 0; left: 0; right: 0; height: 4px; background: linear-gradient(90deg, #ec4899, #db2777);"></div>
-                        <div style="display: flex; align-items: center; gap: 20px;">
-                            <div style="font-size: 3.5rem; filter: drop-shadow(0 0 15px rgba(236, 72, 153, 0.5));">💸</div>
-                            <div style="flex: 1;">
-                                <span style="display: inline-block; background: linear-gradient(135deg, rgba(236, 72, 153, 0.2), rgba(219, 39, 119, 0.1)); color: #ec4899; padding: 4px 12px; border-radius: 20px; font-size: 0.75rem; font-weight: 700; border: 1px solid rgba(236, 72, 153, 0.3); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 10px;">Estilo de Vida</span>
-                                <p style="margin: 0 0 5px 0; font-size: 0.85rem; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.5px;">Gastos Mensuales</p>
-                                <h2 style="margin: 0 0 12px 0; font-size: 1.6rem; color: #ec4899; font-weight: 800;">${formatCurrency(totalCost)}</h2>
-                                <p style="color: #94a3b8; margin: 0; font-size: 0.9rem;">💡 Tu nivel de vida define tus gastos fijos.</p>
-                            </div>
-                        </div>
+            <div class="lifestyle-hero" style="background: linear-gradient(145deg, rgba(236, 72, 153, 0.15), rgba(219, 39, 119, 0.05)); border: 1px solid rgba(236, 72, 153, 0.3); border-radius: 20px; padding: 25px; position: relative; overflow: hidden;">
+                <div style="position: absolute; top: 0; left: 0; right: 0; height: 4px; background: linear-gradient(90deg, #ec4899, #db2777);"></div>
+                <div style="display: flex; align-items: center; gap: 20px;">
+                    <div style="font-size: 3.5rem; filter: drop-shadow(0 0 15px rgba(236, 72, 153, 0.5));">💸</div>
+                    <div style="flex: 1;">
+                        <span style="display: inline-block; background: linear-gradient(135deg, rgba(236, 72, 153, 0.2), rgba(219, 39, 119, 0.1)); color: #ec4899; padding: 4px 12px; border-radius: 20px; font-size: 0.75rem; font-weight: 700; border: 1px solid rgba(236, 72, 153, 0.3); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 10px;">Estilo de Vida</span>
+                        <p style="margin: 0 0 5px 0; font-size: 0.85rem; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.5px;">Gastos Mensuales</p>
+                        <h2 style="margin: 0 0 12px 0; font-size: 1.6rem; color: #ec4899; font-weight: 800;">${formatCurrency(totalCost)}</h2>
+                        <p style="color: #94a3b8; margin: 0; font-size: 0.9rem;">💡 Mejora tu nivel de vida con los botones de upgrade.</p>
                     </div>
-                    `;
+                </div>
+            </div>
+        `;
 
+        // Category icons
+        const getCatIcon = (key) => {
+            const icons = { 'housing': '🏠', 'food': '🍽️', 'transport': '🚗', 'leisure': '🎮', 'clothes': '👔' };
+            return icons[key] || '📋';
+        };
 
-        // CATEGORIES
+        // Item icons
+        const getItemIcon = (itemId) => {
+            const icons = {
+                'parents': '🏠', 'sofa': '🛋️', 'pension': '🏚️', 'room_cheap': '🚪', 'room': '🛏️',
+                'room_suit': '🚿', 'basement': '🪟', 'studio': '🏢', 'apt_out': '🏘️', 'apartment': '🏬',
+                'loft': '🏗️', 'penthouse': '🌆', 'mansion': '🏰',
+                'scraps': '🍞', 'noodles': '🍜', 'junk': '🍔', 'cooking_basic': '🥚', 'cooking': '🥗',
+                'menu': '🍽️', 'bio': '🥬', 'delivery': '📦', 'rest_nice': '🍷', 'chef': '👨‍🍳', 'michelin': '⭐',
+                'walk': '🚶', 'skate': '🛹', 'bike': '🚲', 'scooter_el': '🛴', 'public': '🚌',
+                'moto_125': '🏍️', 'moto_big': '🏎️', 'car_old': '🚗', 'car_new': '🚙',
+                'car_premium': '🚘', 'car_sport': '🏎️', 'supercar': '🏁', 'chofer': '🎩',
+                'free': '🌳', 'library': '📚', 'internet': '🎮', 'basic': '📺', 'hobbies': '🎨',
+                'active': '💪', 'clubbing': '🍸', 'weekend': '✈️', 'vip': '🥂', 'travel': '🌍',
+                'exclusive': '🎯', 'yacht': '🛥️',
+                'donations': '👕', 'second_hand': '♻️', 'low_cost': '🛒', 'basic_clothes': '👔',
+                'fast_fashion': '🛍️', 'sport': '👟', 'boutique': '🎀', 'tech': '⌚',
+                'designer': '💎', 'tailor': '✂️', 'couture': '👗'
+            };
+            return icons[itemId] || '📦';
+        };
+
+        // CATEGORIES with upgrade buttons
         const categoriesHTML = Object.keys(LifestyleModule.categories).map(catKey => {
             const cat = LifestyleModule.categories[catKey];
             const selectedId = current ? current[catKey] : null;
+            const items = cat.items;
 
-            // Find current index
-            const currentIndex = cat.items.findIndex(i => i.id === selectedId);
+            const currentIndex = items.findIndex(i => i.id === selectedId);
             const effectiveIndex = currentIndex === -1 ? 0 : currentIndex;
+            const currentItem = items[effectiveIndex];
+            const nextItem = items[effectiveIndex + 1] || null;
+            const levelNum = effectiveIndex + 1;
+            const maxLevel = items.length;
 
-            // Filter items: Show all up to current + 1 
-            // UNLESS forced tutorial requires sofa, then ensure sofa is visible
-            let visibleItems = cat.items.filter((item, index) => index <= effectiveIndex + 1);
+            const isTutorialForce = (catKey === 'housing' && GameState.tutorialState.forceHousing);
+            const isCategoryLocked = (catKey !== 'housing' && GameState.tutorialState.forceHousing);
 
-            if (catKey === 'housing' && GameState.tutorialState.forceHousing) {
-                const sofaItem = cat.items.find(i => i.id === 'sofa');
-                if (sofaItem && !visibleItems.includes(sofaItem)) {
-                    visibleItems.push(sofaItem); // Force sofa visibility
-                    visibleItems.sort((a, b) => a.cost - b.cost); // Re-sort by cost usually
-                }
+            let upfrontInfo = '';
+            if (nextItem) {
+                if (nextItem.deposit) upfrontInfo = `+ Fianza: ${formatCurrency(nextItem.deposit)}`;
+                else if (nextItem.purchaseCost) upfrontInfo = `+ Compra: ${formatCurrency(nextItem.purchaseCost)}`;
             }
 
-            const itemsHTML = visibleItems.map(item => {
-                const isSelected = item.id === selectedId;
-                let cardClasses = `course-card-new lifestyle-card ${isSelected ? 'selected' : ''}`;
-                let cardStyle = `cursor:pointer; border-color:${isSelected ? '#ec4899' : '#334155'}; background:${isSelected ? 'rgba(236, 72, 153, 0.1)' : '#1e293b'}`;
-                let isDisabled = false;
+            // Premium button styles - 3D style with pink/violet colors
+            const btnStyle = `width: 100%; padding: 14px 24px; background: linear-gradient(135deg, #ec4899, #db2777); color: white; border: none; border-radius: 12px; font-weight: 800; font-size: 1rem; text-transform: uppercase; letter-spacing: 0.5px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 6px 0 #9d174d, 0 10px 20px rgba(236, 72, 153, 0.4); transform: translateY(-2px); transition: all 0.15s;${isTutorialForce ? ' animation: pulse 1.5s infinite;' : ''}`;
 
-                // Forced housing logic & Permanent blocks
-                if (item.id === 'parents') {
-                    isDisabled = true;
-                    cardStyle += '; opacity:0.5; cursor:not-allowed;';
-                }
-                else if (GameState.tutorialState.forceHousing && item.id !== 'sofa') {
-                    isDisabled = true;
-                    cardStyle += '; opacity:0.5; cursor:not-allowed;';
-                }
-
-                if (item.id === 'sofa' && GameState.tutorialState.forceHousing) {
-                    cardClasses += ' tutorial-highlight';
-                }
-
-                // Get icon based on item
-                const getItemIcon = (itemId) => {
-                    const icons = {
-                        'parents': '🏠', 'sofa': '🛋️', 'piso_compartido': '🏢', 'piso_alquiler': '🏬', 'piso_propio': '🏡',
-                        'comida_basica': '🍞', 'comida_normal': '🍝', 'comida_premium': '🍣', 'comida_lujo': '🥂',
-                        'transporte_publico': '🚌', 'moto': '🏍️', 'coche_basico': '🚗', 'coche_premium': '🚙', 'coche_lujo': '🏎️'
-                    };
-                    return icons[itemId] || '📦';
-                };
-                const itemIcon = getItemIcon(item.id);
-
-                return `
-                            <div class="${cardClasses}" style="${cardStyle}; border-radius: 12px; padding: 15px; transition: all 0.2s;" data-cat="${catKey}" data-id="${item.id}" ${isDisabled ? 'data-disabled="true"' : ''}>
-                                <div style="display:flex; justify-content:space-between; align-items: center; margin-bottom:8px;">
-                                    <div style="display: flex; align-items: center; gap: 10px;">
-                                        <span style="font-size: 1.5rem;">${itemIcon}</span>
-                                        <h4 style="margin:0; color:${isSelected ? '#ec4899' : '#fff'}; font-weight: 700;">${item.name}</h4>
-                                    </div>
-                                    <span style="font-weight: 800; color: ${isSelected ? '#ec4899' : '#f59e0b'}; font-size: 1.1rem;">${formatCurrency(item.cost)}</span>
-                                </div>
-                                <p style="font-size:0.85rem; color:#94a3b8; margin:0; padding-left: 42px;">${item.desc}</p>
-                                ${isSelected ? '<div style="margin-top: 10px; padding-left: 42px;"><span style="background: linear-gradient(135deg, rgba(236, 72, 153, 0.2), rgba(219, 39, 119, 0.1)); color: #ec4899; padding: 3px 10px; border-radius: 12px; font-size: 0.7rem; font-weight: 700; border: 1px solid rgba(236, 72, 153, 0.3);">✓ SELECCIONADO</span></div>' : ''}
-                            </div>
-                            `;
-            }).join('');
-
-            // Category icons
-            const getCatIcon = (key) => {
-                const icons = { 'housing': '🏠', 'food': '🍽️', 'transport': '🚗' };
-                return icons[key] || '📋';
-            };
+            // Locked overlay
+            const lockOverlay = isCategoryLocked ? `
+                <div style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: rgba(15, 23, 42, 0.9); border-radius: 16px; display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 5;">
+                    <span style="font-size: 2rem; margin-bottom: 8px;">🔒</span>
+                    <span style="color: #94a3b8; font-weight: 600;">Primero elige vivienda</span>
+                </div>
+            ` : '';
 
             return `
-                        <div style="margin-bottom:30px;">
-                            <h3 style="color:#cbd5e1; border-bottom:2px solid rgba(236, 72, 153, 0.3); padding-bottom:10px; margin-bottom:20px; display: flex; align-items: center; gap: 10px; font-size: 1.1rem;">
-                                <span style="font-size: 1.3rem;">${getCatIcon(catKey)}</span> ${cat.label}
-                            </h3>
-                            <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap:15px;">
-                                ${itemsHTML}
+                <div class="lifestyle-category-card" style="background: linear-gradient(145deg, #1e293b, #0f172a); border: 1px solid ${isTutorialForce ? '#facc15' : '#334155'}; border-radius: 16px; padding: 20px; margin-bottom: 15px; position: relative;">
+                    ${lockOverlay}
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                        <h3 style="color: #cbd5e1; margin: 0; display: flex; align-items: center; gap: 10px; font-size: 1rem;">
+                            <span style="font-size: 1.3rem;">${getCatIcon(catKey)}</span> ${cat.label}
+                        </h3>
+                        <span style="background: rgba(236, 72, 153, 0.15); color: #ec4899; padding: 4px 10px; border-radius: 12px; font-size: 0.7rem; font-weight: 700; border: 1px solid rgba(236, 72, 153, 0.3);">Nivel ${levelNum}/${maxLevel}</span>
+                    </div>
+                    
+                    <div style="background: rgba(15, 23, 42, 0.5); border: 1px solid #475569; border-radius: 12px; padding: 15px; margin-bottom: 12px;">
+                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                            <div style="display: flex; align-items: center; gap: 12px;">
+                                <span style="font-size: 2rem;">${getItemIcon(currentItem.id)}</span>
+                                <div>
+                                    <h4 style="margin: 0 0 4px 0; color: #f8fafc; font-weight: 700;">${currentItem.name}</h4>
+                                    <p style="margin: 0; color: #94a3b8; font-size: 0.85rem;">${currentItem.desc}</p>
+                                </div>
+                            </div>
+                            <div style="text-align: right;">
+                                <span style="font-size: 1.2rem; color: #ec4899; font-weight: 800;">${formatCurrency(currentItem.cost)}</span>
+                                <span style="display: block; color: #64748b; font-size: 0.75rem;">/mes</span>
                             </div>
                         </div>
-                        `;
+                    </div>
+                    
+                    ${nextItem && !isCategoryLocked ? `
+                        <button class="btn-upgrade-lifestyle ${isTutorialForce ? 'tutorial-highlight' : ''}" data-cat="${catKey}" data-next-id="${nextItem.id}" style="${btnStyle}">
+                            <span style="display: flex; align-items: center; gap: 8px;">
+                                <span style="font-size: 1.3rem;">⬆️</span>
+                                <span>Mejorar a Nivel ${levelNum + 1}</span>
+                            </span>
+                            <span style="text-align: right; font-size: 0.85rem; font-weight: 600;">
+                                ${nextItem.name}<br>
+                                <span style="opacity: 0.85;">${formatCurrency(nextItem.cost)}/mes ${upfrontInfo}</span>
+                            </span>
+                        </button>
+                    ` : (!isCategoryLocked ? `
+                        <div style="text-align: center; padding: 14px; background: linear-gradient(135deg, rgba(74, 222, 128, 0.15), rgba(34, 197, 94, 0.05)); border: 2px solid rgba(74, 222, 128, 0.3); border-radius: 14px;">
+                            <span style="color: #4ade80; font-weight: 800;">🏆 ¡NIVEL MÁXIMO!</span>
+                        </div>
+                    ` : '')}
+                </div>
+            `;
         }).join('');
 
-
         container.innerHTML = `
-                        <div class="dashboard-container">
-                            ${heroHTML}
-                            <div style="margin-top:20px;">
-                                ${categoriesHTML}
-                            </div>
-                        </div>
-                    `;
+            <div class="dashboard-container">
+                ${heroHTML}
+                <div style="margin-top: 20px;">${categoriesHTML}</div>
+            </div>
+        `;
 
         // EVENTS
-        container.querySelectorAll('.lifestyle-card').forEach(card => {
-            card.onclick = () => {
-                const cat = card.dataset.cat;
-                const id = card.dataset.id;
+        container.querySelectorAll('.btn-upgrade-lifestyle').forEach(btn => {
+            btn.onmouseover = () => { btn.style.transform = 'scale(1.02)'; btn.style.boxShadow = '0 4px 15px rgba(74, 222, 128, 0.3)'; };
+            btn.onmouseout = () => { btn.style.transform = 'scale(1)'; btn.style.boxShadow = 'none'; };
 
-                // If disabled by tutorial, prevent action
-                if (card.dataset.disabled === 'true') {
-                    UI.showToast('¡Atención!', 'Debes elegir "Vivir en el sofá" primero para continuar el tutorial.', 'warning');
-                    return;
-                }
+            btn.onclick = () => {
+                const catKey = btn.dataset.cat;
+                const nextId = btn.dataset.nextId;
+                const cat = LifestyleModule.categories[catKey];
+                const item = cat.items.find(i => i.id === nextId);
+                if (!item) return;
 
-                if (current[cat] === id) return; // No change
-
-                const item = LifestyleModule.getItem(cat, id);
-
-                // Calc upfront
-                let upfront = 0;
-                let upfrontLabel = '';
-                if (item.deposit) {
-                    upfront += item.deposit;
-                    upfrontLabel = `Fianza: ${formatCurrency(item.deposit)}`;
-                }
-                if (item.purchaseCost) {
-                    upfront += item.purchaseCost;
-                    upfrontLabel = `Compra: ${formatCurrency(item.purchaseCost)}`;
-                }
-
+                let upfront = item.deposit || item.purchaseCost || 0;
+                let upfrontLabel = item.deposit ? `Fianza: ${formatCurrency(item.deposit)}` : (item.purchaseCost ? `Compra: ${formatCurrency(item.purchaseCost)}` : '');
                 const costMsg = upfront > 0 ? `\n\n❗ Requiere PAGO INICIAL: ${formatCurrency(upfront)} (${upfrontLabel})` : '';
 
                 const performUpdate = () => {
-                    const res = LifestyleModule.setOption(cat, id);
+                    const res = LifestyleModule.setOption(catKey, nextId);
                     if (res.success) {
-                        // Tutorial specific logic
-                        const isTutorialSofa = (GameState.tutorialState.forceHousing && id === 'sofa');
-
-                        if (isTutorialSofa) {
+                        if (GameState.tutorialState.forceHousing && nextId === 'sofa') {
                             GameState.tutorialState.forceHousing = false;
                             GameState.expensesUnlocked = true;
-                            // NOTE: We SKIP the "Tutorial Completed" toast here because 
-                            // setOption() triggers TutorialSystem.step9_Independence() which shows a modal.
-                            // We also skip valid "Style Updated" toast to avoid clutter.
                         } else {
-                            if (res.message) UI.showToast('Estilo de Vida Actualizado', res.message, 'success');
+                            if (res.message) UI.showToast('¡Nivel Mejorado!', res.message, 'success');
                         }
-
                         UI.updateLifestyle(LifestyleModule);
                         UI.updateHeader();
                         UI.updateDashboard();
                         UI.playCoinSound();
-
-                        // Check contextual only if not in crucial tutorial moment
-                        if (!isTutorialSofa) {
-                            setTimeout(() => UI.checkContextualTutorial('lifestyle'), 1000);
-                        }
                     } else {
                         UI.showToast('Error', res.message, 'error');
                     }
                 };
 
-                // Skip confirmation for Tutorial Sofa to be smoother
-                if (GameState.tutorialState.forceHousing && id === 'sofa') {
+                if (GameState.tutorialState.forceHousing && nextId === 'sofa') {
                     performUpdate();
                 } else {
-                    UI.confirmModal('Cambiar Estilo de Vida', `¿Cambiar ${LifestyleModule.categories[cat].label} a:\n\n${item.name}\nCoste: ${formatCurrency(item.cost)}/mes?${costMsg}`, () => {
-                        performUpdate();
-                    });
+                    UI.confirmModal('Mejorar Nivel de Vida', `¿Subir ${cat.label} a:\n\n${item.name}\nCoste: ${formatCurrency(item.cost)}/mes?${costMsg}`, performUpdate);
                 }
             };
         });
