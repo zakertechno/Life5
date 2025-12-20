@@ -118,17 +118,26 @@ function showEndgameModal() {
 }
 
 function resetGame() {
-    // Confirm reset
-    if (!confirm('¿Estás seguro de que quieres reiniciar el juego? Se perderán todos los datos.')) {
-        return;
-    }
-
-    // Clear localStorage
-    localStorage.removeItem('gameState');
-    localStorage.removeItem('playerName');
-
-    // Reload page to restart
-    location.reload();
+    UI.showModal('⚠️ Reiniciar Juego',
+        `<div style="text-align:center;">
+            <div style="font-size:3rem; margin-bottom:10px;">🤯</div>
+            <p style="color:#cbd5e1; margin-bottom:15px; font-size:1.1rem;">¿Estás seguro de que quieres reiniciar?</p>
+            <div style="background:rgba(239, 68, 68, 0.1); border:1px solid rgba(239, 68, 68, 0.3); padding:15px; border-radius:10px;">
+                <p style="color:#ef4444; font-weight:800; margin:0; text-transform:uppercase;">⛔ SE PERDERÁN TODOS LOS DATOS</p>
+            </div>
+        </div>
+        `,
+        [
+            { text: 'Cancelar', style: 'secondary', fn: null },
+            {
+                text: 'SÍ, BORRAR TODO', style: 'danger', fn: () => {
+                    localStorage.removeItem('gameState');
+                    localStorage.removeItem('playerName');
+                    location.reload();
+                }
+            }
+        ], true
+    );
 }
 
 /*******************************************************
@@ -649,9 +658,16 @@ const PersistenceModule = {
     },
 
     confirmSaveToSlot(slotKey) {
-        if (confirm('¿Sobrescribir esta partida guardada?')) {
-            this.saveAndNotify(slotKey);
-        }
+        UI.showModal('Sobrescribir Partida', `
+            <div style="text-align:center;">
+                <div style="font-size:3rem; margin-bottom:10px;">💾</div>
+                <p style="color:#cbd5e1; margin-bottom:15px;">¿Seguro que quieres sobrescribir este espacio?</p>
+                <p style="color:#94a3b8; font-size:0.85rem;">La partida anterior se perderá para siempre.</p>
+            </div>
+        `, [
+            { text: 'Cancelar', style: 'secondary', fn: null },
+            { text: 'SOBRESCRIBIR', style: 'primary', fn: () => this.saveAndNotify(slotKey) }
+        ], true);
     },
 
     saveAndNotify(slotKey) {
@@ -1429,21 +1445,21 @@ const EducationModule = {
         { id: 'fp_medio', name: 'FP Grado Medio', cost: 500, duration: 18, salaryMod: 1.2, required: null, desc: 'Formación Profesional práctica. Acceso a FP Superior.' },
 
         // FP Superior
-        { id: 'fp_admin', name: 'FP Sup. Administración', cost: 1500, duration: 24, salaryMod: 1.5, required: ['bachillerato', 'fp_medio'], desc: 'Gestión y Finanzas.' },
-        { id: 'fp_dam', name: 'FP Sup. Desarrollo Apps', cost: 1500, duration: 24, salaryMod: 1.6, required: ['bachillerato', 'fp_medio'], desc: 'Programación y Software.' },
-        { id: 'fp_maint', name: 'FP Sup. Mantenimiento', cost: 1500, duration: 24, salaryMod: 1.5, required: ['bachillerato', 'fp_medio'], desc: 'Instalaciones y Montaje.' },
+        { id: 'fp_admin', name: 'FP Sup. Administración', cost: 1500, duration: 18, salaryMod: 1.5, required: ['bachillerato', 'fp_medio'], desc: 'Gestión y Finanzas.' },
+        { id: 'fp_dam', name: 'FP Sup. Desarrollo Apps', cost: 1500, duration: 18, salaryMod: 1.6, required: ['bachillerato', 'fp_medio'], desc: 'Programación y Software.' },
+        { id: 'fp_maint', name: 'FP Sup. Mantenimiento', cost: 1500, duration: 18, salaryMod: 1.5, required: ['bachillerato', 'fp_medio'], desc: 'Instalaciones y Montaje.' },
 
         // Grados
-        { id: 'grado_ade', name: 'Grado en ADE', cost: 6000, duration: 48, salaryMod: 2.0, required: ['bachillerato'], desc: 'Administración de Empresas.' },
-        { id: 'grado_cs', name: 'Grado en Ing. Informática', cost: 6000, duration: 48, salaryMod: 2.2, required: ['bachillerato'], desc: 'Ciencias de la Computación.' },
-        { id: 'grado_civil', name: 'Grado en Ing. Civil', cost: 6000, duration: 48, salaryMod: 2.1, required: ['bachillerato'], desc: 'Obras y Construcción.' },
+        { id: 'grado_ade', name: 'Grado en ADE', cost: 6000, duration: 36, salaryMod: 2.0, required: ['bachillerato'], desc: 'Administración de Empresas.' },
+        { id: 'grado_cs', name: 'Grado en Ing. Informática', cost: 6000, duration: 36, salaryMod: 2.2, required: ['bachillerato'], desc: 'Ciencias de la Computación.' },
+        { id: 'grado_civil', name: 'Grado en Ing. Civil', cost: 6000, duration: 36, salaryMod: 2.1, required: ['bachillerato'], desc: 'Obras y Construcción.' },
 
         // Masters
         { id: 'master_fin', name: 'Máster en Finanzas', cost: 12000, duration: 12, salaryMod: 3.5, required: ['grado_ade'], desc: 'Dirección Financiera.' },
         { id: 'master_ai', name: 'Máster en IA', cost: 12000, duration: 12, salaryMod: 4.0, required: ['grado_cs'], desc: 'Inteligencia Artificial.' },
         { id: 'master_ing', name: 'Máster Ingeniería', cost: 12000, duration: 12, salaryMod: 3.5, required: ['grado_civil'], desc: 'Habilitante para firma de proyectos.' },
 
-        { id: 'bootcamp', name: 'Bootcamp Programación', cost: 4000, duration: 6, salaryMod: 2.5, required: null, desc: 'Intensivo tech. Alta demanda.' }
+        { id: 'bootcamp', name: 'Bootcamp Programación', cost: 8000, duration: 6, salaryMod: 2.5, required: null, desc: 'Intensivo tech. Alta demanda.' }
     ],
 
     getCourse(id) {
@@ -2188,14 +2204,14 @@ const JobSystem = {
     careers: {
         // --- BASICO ---
         'unskilled': [
-            { title: 'Reponedor / Auxiliar', salary: 1000, reqMonths: 0, reqEdu: ['bachillerato', 'fp_medio'] },
+            { title: 'Reponedor / Auxiliar', salary: 850, reqMonths: 0, reqEdu: ['bachillerato', 'fp_medio'] },
             { title: 'Cajero / Atención', salary: 1150, reqMonths: 6, reqEdu: null },
             { title: 'Supervisor de Planta', salary: 1400, reqMonths: 24, reqEdu: null }
         ],
 
         // --- TRES DEPORTE (Sin ascensos) ---
         'tres_deporte': [
-            { title: 'TRES DEPORTE', salary: 850, reqMonths: 0, reqEdu: 'bachillerato' }
+            { title: 'TRES DEPORTE', salary: 950, reqMonths: 0, reqEdu: 'bachillerato' }
         ],
 
         // --- FP ADMINISTRACION ---
@@ -2590,7 +2606,7 @@ const JobSystem = {
         return allJobs;
     },
 
-    applyToJob(jobTitle) {
+    applyToJob(jobTitle, force = false) {
         let targetJob, targetPath;
 
         // Check Careers
@@ -2622,7 +2638,9 @@ const JobSystem = {
         }
 
         if (GameState.company) {
-            if (!confirm('Al aceptar este trabajo cerrarás tu empresa. ¿Seguro?')) return { success: false, message: 'Operación cancelada' };
+            if (!force) {
+                return { success: false, requiresConfirmation: true, message: 'Cierre de empresa requerido.' };
+            }
             GameState.company = null;
         }
 
@@ -5268,36 +5286,112 @@ const UI = {
                     };
 
                     const msg = `
-                                    <div style="margin-bottom:15px; border-bottom:1px solid #334155; padding-bottom:10px;">
-                                        <strong>${prop.name}</strong><br>
-                                        Precio: ${formatCurrency(prop.price)}<br>
-                                        Entrada (20%): <span style="color:#facc15">${formatCurrency(downPayment)}</span><br>
-                                        Préstamo: ${formatCurrency(loanAmount)}<br>
-                                        Interés Anual: <span style="color:#f87171">${(rateAnnual * 100).toFixed(2)}%</span>
-                                    </div>
-                                    <p style="margin-bottom:5px; font-size:0.9rem; color:#94a3b8;">Elige el plazo:</p>
-                                `;
+                        <div style="text-align:center;">
+                            <div style="font-size:3rem; margin-bottom:10px;">🏠</div>
+                            <h3 style="color:#facc15; margin:0 0 5px 0;">Configurar Hipoteca</h3>
+                            <p style="color:#cbd5e1; font-size:1rem; margin-bottom:20px;">${prop.name}</p>
 
-                    UI.showModal('Configurar Hipoteca', msg, [
-                        { text: `10 Años (${formatCurrency(calcPmt(10))}/mes)`, style: 'primary', fn: () => buy(id, true, 10) },
-                        { text: `20 Años (${formatCurrency(calcPmt(20))}/mes)`, style: 'primary', fn: () => buy(id, true, 20) },
-                        { text: `30 Años (${formatCurrency(calcPmt(30))}/mes)`, style: 'primary', fn: () => buy(id, true, 30) },
+                            <div style="background:rgba(15, 23, 42, 0.6); border-radius:12px; padding:20px; text-align:left; border:1px solid #334155;">
+                                <div style="display:flex; justify-content:space-between; margin-bottom:8px;">
+                                    <span style="color:#94a3b8;">Valor Propiedad:</span>
+                                    <span style="color:#e2e8f0; font-weight:700;">${formatCurrency(prop.price)}</span>
+                                </div>
+                                <div style="display:flex; justify-content:space-between; margin-bottom:8px;">
+                                    <span style="color:#94a3b8;">Entrada (20%):</span>
+                                    <span style="color:#ef4444; font-weight:700;">- ${formatCurrency(downPayment)}</span>
+                                </div>
+                                <div style="border-top:1px dashed #475569; margin:10px 0;"></div>
+                               <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+                                    <span style="color:#f97316; font-weight:600;">PRÉSTAMO:</span>
+                                    <span style="color:#f97316; font-weight:800; font-size:1.1rem;">${formatCurrency(loanAmount)}</span>
+                                </div>
+                                <div style="display:flex; justify-content:space-between; font-size:0.85rem;">
+                                   <span style="color:#94a3b8;">Interés Anual:</span>
+                                   <span style="color:#fff;">${(rateAnnual * 100).toFixed(2)}%</span>
+                                </div>
+                            </div>
+                            
+                            <p style="margin-top:20px; font-size:0.9rem; color:#94a3b8; margin-bottom:10px;">Selecciona el plazo de amortización:</p>
+                            <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(100px, 1fr)); gap:10px;">
+                                <div id="mortgage-10y" class="mortgage-card" style="background:rgba(30, 41, 59, 0.8); border:1px solid #334155; border-radius:10px; padding:15px; cursor:pointer; transition:all 0.2s; text-align:center;">
+                                    <div style="font-size:0.9rem; color:#94a3b8; margin-bottom:5px;">10 Años</div>
+                                    <div style="font-size:1.1rem; color:#facc15; font-weight:700;">${formatCurrency(calcPmt(10))}/mes</div>
+                                </div>
+                                <div id="mortgage-20y" class="mortgage-card" style="background:rgba(30, 41, 59, 0.8); border:1px solid #334155; border-radius:10px; padding:15px; cursor:pointer; transition:all 0.2s; text-align:center;">
+                                 <div style="font-size:0.9rem; color:#94a3b8; margin-bottom:5px;">20 Años</div>
+                                    <div style="font-size:1.1rem; color:#facc15; font-weight:700;">${formatCurrency(calcPmt(20))}/mes</div>
+                                </div>
+                                <div id="mortgage-30y" class="mortgage-card" style="background:rgba(30, 41, 59, 0.8); border:1px solid #334155; border-radius:10px; padding:15px; cursor:pointer; transition:all 0.2s; text-align:center;">
+                                     <div style="font-size:0.9rem; color:#94a3b8; margin-bottom:5px;">30 Años</div>
+                                    <div style="font-size:1.1rem; color:#facc15; font-weight:700;">${formatCurrency(calcPmt(30))}/mes</div>
+                                </div>
+                            </div>
+                            <style>
+                                .mortgage-card:hover {
+                                    background: rgba(59, 130, 246, 0.1) !important;
+                                    border-color: #3b82f6 !important;
+                                    transform: translateY(-2px);
+                                }
+                            </style>
+                        </div>
+                    `;
+
+                    const overlay = UI.showModal('Configurar Hipoteca', msg, [
                         { text: 'Cancelar', style: 'secondary', fn: null }
-                    ], true);
+                    ]);
+
+                    // Attach events manually since we use custom HTML buttons
+                    if (overlay) {
+                        overlay.querySelector('#mortgage-10y').onclick = () => { buy(id, true, 10); overlay.remove(); };
+                        overlay.querySelector('#mortgage-20y').onclick = () => { buy(id, true, 20); overlay.remove(); };
+                        overlay.querySelector('#mortgage-30y').onclick = () => { buy(id, true, 30); overlay.remove(); };
+                    }
 
                 } else {
                     // Cash Buy
-                    const confirmMsg = `¿Adquirir ${prop.name} por ${formatCurrency(prop.price)} al contado?`;
-                    UI.confirmModal('Pago al Contado', confirmMsg, () => {
-                        buy(id, false, 0);
-                    });
+                    UI.showModal('Compra al Contado', `
+                        <div style="text-align:center;">
+                            <div style="font-size:3rem; margin-bottom:10px;">💎</div>
+                            <h3 style="color:#fff; margin:0 0 5px 0;">${prop.name}</h3>
+                            <p style="color:#94a3b8; font-size:0.9rem; margin-bottom:20px;">Adquisición de propiedad libre de cargas.</p>
+
+                            <div style="background:linear-gradient(135deg, rgba(16, 185, 129, 0.1), rgba(5, 150, 105, 0.05)); border:1px solid rgba(16, 185, 129, 0.3); border-radius:12px; padding:20px; margin-bottom:20px;">
+                                <div style="font-size:0.85rem; color:#6ee7b7; text-transform:uppercase; margin-bottom:5px;">PRECIO TOTAL</div>
+                                <div style="font-size:2rem; font-weight:800; color:#fff; text-shadow:0 0 15px rgba(16, 185, 129, 0.5);">${formatCurrency(prop.price)}</div>
+                            </div>
+
+                            <div style="display:flex; justify-content:space-between; padding:10px 20px; background:rgba(15, 23, 42, 0.5); border-radius:8px;">
+                                 <span style="color:#94a3b8;">Tu saldo actual:</span>
+                                 <span style="color:#cbd5e1;">${formatCurrency(GameState.cash)}</span>
+                            </div>
+                             <div style="display:flex; justify-content:space-between; padding:10px 20px; background:rgba(30, 41, 59, 0.5); border-radius:8px; margin-top:5px;">
+                                 <span style="color:#94a3b8;">Saldo tras comprar:</span>
+                                 <span style="color:${(GameState.cash - prop.price) >= 0 ? '#4ade80' : '#f87171'}; font-weight:700;">${formatCurrency(GameState.cash - prop.price)}</span>
+                            </div>
+                        </div>
+                    `, [
+                        { text: 'Cancelar', style: 'secondary', fn: null },
+                        { text: 'COMPRAR COMTADO', style: 'success', fn: () => buy(id, false, 0) }
+                    ], true);
                 }
 
                 // Helper execution
                 const buy = (propId, mortgage, term) => {
                     const res = REModule.buyProperty(propId, mortgage, term);
                     if (res.success) {
-                        UI.showModal('¡Operación Exitosa!', res.message, [{ text: 'Genial', style: 'primary', fn: null }]);
+                        const purchasedProp = GameState.inventory.realEstate.find(p => p.id === propId);
+                        UI.showModal('¡LLAVES EN MANO!', `
+                            <div style="text-align:center;">
+                                <div style="font-size:4rem; margin-bottom:10px; animation: bounceIn 0.8s;">🔑</div>
+                                <h3 style="color:#facc15; font-size:1.5rem; margin:0 0 10px 0; text-shadow:0 0 10px rgba(250, 204, 21, 0.3);">¡PROPIEDAD ADQUIRIDA!</h3>
+                                <div style="background:rgba(15, 23, 42, 0.6); border:1px solid #facc15; border-radius:12px; padding:20px; margin-bottom:20px;">
+                                    <p style="color:#cbd5e1; font-size:1.1rem; margin-bottom:5px;">Has comprado:</p>
+                                    <div style="font-size:1.4rem; font-weight:800; color:#fff;">${purchasedProp ? purchasedProp.name : 'Nueva Propiedad'}</div>
+                                </div>
+                                <p style="color:#94a3b8; font-size:0.9rem;">Esta propiedad ya forma parte de tu patrimonio. <br>¡Empieza a generar ingresos!</p>
+                            </div>
+                        `, [{ text: '¡Excelente!', style: 'success', fn: null }], true);
+
                         UI.updateHeader();
                         UI.updateDashboard();
                         UI.updateBank(Bank);
@@ -5313,16 +5407,55 @@ const UI = {
             btn.onclick = (e) => {
                 const id = parseInt(e.target.dataset.id);
                 const prop = GameState.inventory.realEstate.find(p => p.id === id);
-                if (confirm(`¿Vender ${prop ? prop.name : 'propiedad'}?`)) {
-                    const res = REModule.sellProperty(id);
-                    showGameAlert(res.message, res.success ? 'success' : 'error');
-                    if (res.success) {
-                        UI.updateHeader();
-                        UI.updateDashboard();
-                        UI.updateBank(Bank);
-                        UI.updateRealEstate(REModule);
-                    }
+                // Calculate details for modal
+                let outstandingMortgage = 0;
+                if (prop.mortgageId) {
+                    const loan = GameState.loans.find(l => l.id === prop.mortgageId);
+                    if (loan) outstandingMortgage = loan.remainingBalance;
                 }
+                const netProceeds = prop.price - outstandingMortgage;
+
+                UI.showModal('Vender Propiedad', `
+                    <div style="text-align:center;">
+                        <div style="font-size:3rem; margin-bottom:10px;">🏷️</div>
+                        <h3 style="color:#fff; margin:0 0 5px 0;">${prop.name}</h3>
+                        <p style="color:#94a3b8; font-size:0.9rem; margin-bottom:20px;">¿Confirmas la venta de esta propiedad?</p>
+
+                        <div style="background:rgba(15, 23, 42, 0.6); border-radius:12px; padding:20px; text-align:left; border:1px solid #334155;">
+                            <div style="display:flex; justify-content:space-between; margin-bottom:8px;">
+                                <span style="color:#94a3b8;">Precio de Mercado:</span>
+                                <span style="color:#e2e8f0; font-weight:700;">${formatCurrency(prop.price)}</span>
+                            </div>
+                            ${outstandingMortgage > 0 ? `
+                            <div style="display:flex; justify-content:space-between; margin-bottom:8px;">
+                                <span style="color:#f87171;">Cancelación Hipoteca:</span>
+                                <span style="color:#f87171; font-weight:700;">- ${formatCurrency(outstandingMortgage)}</span>
+                            </div>
+                            <div style="border-top:1px dashed #475569; margin:10px 0;"></div>
+                            ` : ''}
+                            <div style="display:flex; justify-content:space-between; align-items:center;">
+                                <span style="color:#4ade80; font-weight:600;">NETO A RECIBIR:</span>
+                                <span style="color:#4ade80; font-weight:800; font-size:1.2rem;">${formatCurrency(netProceeds)}</span>
+                            </div>
+                        </div>
+                    </div>
+                `, [
+                    { text: 'Cancelar', style: 'secondary', fn: null },
+                    {
+                        text: 'VENDER AHORA',
+                        style: 'danger',
+                        fn: () => {
+                            const res = REModule.sellProperty(id);
+                            showGameAlert(res.message, res.success ? 'success' : 'error');
+                            if (res.success) {
+                                UI.updateHeader();
+                                UI.updateDashboard();
+                                UI.updateBank(Bank);
+                                UI.updateRealEstate(REModule);
+                            }
+                        }
+                    }
+                ], true);
             };
         });
     },
@@ -6486,6 +6619,7 @@ const UI = {
             actionBox.appendChild(btn);
         });
         document.body.appendChild(overlay);
+        return overlay;
     },
 
     confirmModal(title, msg, onConfirm) {
@@ -6658,6 +6792,7 @@ const UI = {
                                 text: 'VENDER AHORA',
                                 style: 'danger',
                                 fn: () => {
+                                    // Original sell logic
                                     const res = CompanyModule.sellPassiveCompany(idx);
                                     if (res && res.success) {
                                         UI.updateJob(JobSys);
@@ -7050,13 +7185,28 @@ const UI = {
                                 </div>
                             `;
                     card.querySelector('.btn-apply-small').onclick = () => {
-                        const res = JobSys.applyToJob(vac.title);
-                        if (res.success) {
-                            // PREMIUM GIG WELCOME MESSAGE
-                            const themeColor = '#facc15';
-                            const icon = '⚡';
+                        const performApply = (force = false) => {
+                            const res = JobSys.applyToJob(vac.title, force);
+                            if (res.requiresConfirmation) {
+                                UI.showModal('⚠️ Cerrar Empresa',
+                                    `<div style="text-align:center;">
+                                        <div style="font-size:3rem; margin-bottom:10px;">building</div>
+                                        <p style="color:#cbd5e1; margin-bottom:15px;">Al aceptar este empleo, tu empresa actual se cerrará.</p>
+                                        <p style="color:#ef4444; font-weight:700;">Esta acción es irreversible.</p>
+                                    </div>`,
+                                    [
+                                        { text: 'Cancelar', style: 'secondary', fn: null },
+                                        { text: 'CERRAR Y ACEPTAR', style: 'danger', fn: () => performApply(true) }
+                                    ], true
+                                );
+                                return;
+                            }
+                            if (res.success) {
+                                // PREMIUM GIG WELCOME MESSAGE
+                                const themeColor = '#facc15';
+                                const icon = '⚡';
 
-                            let gigMsg = `
+                                let gigMsg = `
                                 <div style="text-align: center; margin-bottom: 20px;">
                                     <div style="font-size: 4rem; margin-bottom: 10px; filter: drop-shadow(0 0 15px ${themeColor}66); animation: bounceIn 0.6s cubic-bezier(0.68, -0.55, 0.265, 1.55);">${icon}</div>
                                     <h3 style="color: ${themeColor}; margin: 0; font-size: 1.6rem; text-shadow: 0 0 10px ${themeColor}4d; font-weight: 800; letter-spacing: 1px;">¡TRABAJO TEMPORAL!</h3>
@@ -7076,12 +7226,14 @@ const UI = {
                                 </p>
                             `;
 
-                            UI.showModal(' ', gigMsg, [{ text: '🚀 ¡Empezar!', style: 'primary', fn: () => UI.updateJob(JobSys) }], true);
-                            UI.updateHeader();
-                            UI.updateDashboard();
-                        } else {
-                            showGameAlert(res.message, res.success ? 'success' : 'error');
-                        }
+                                UI.showModal(' ', gigMsg, [{ text: '🚀 ¡Empezar!', style: 'primary', fn: () => UI.updateJob(JobSys) }], true);
+                                UI.updateHeader();
+                                UI.updateDashboard();
+                            } else {
+                                showGameAlert(res.message, res.success ? 'success' : 'error');
+                            }
+                        };
+                        performApply();
                     };
                     gigGrid.appendChild(card);
                 });
@@ -7166,17 +7318,32 @@ const UI = {
 
 
                     card.querySelector('.btn-apply-small').onclick = () => {
-                        const res = JobSys.applyToJob(vac.title);
-                        if (res.success) {
-                            const isGig = vac.type === 'gig';
-                            // Use Blue/Cyan for Permanent Jobs to be distinct from Green (Success)
-                            const themeColor = isGig ? '#facc15' : '#0ea5e9'; // Yellow vs Sky Blue
-                            const icon = isGig ? '⚡' : '👔';
-                            const title = isGig ? '¡TRABAJO TEMPORAL!' : '¡CONTRATO FIRMADO!';
-                            const subTitle = isGig ? 'Trabajo Temporal' : 'Nueva Trayectoria Profesional';
+                        const performApply = (force = false) => {
+                            const res = JobSys.applyToJob(vac.title, force);
+                            if (res.requiresConfirmation) {
+                                UI.showModal('⚠️ Cerrar Empresa',
+                                    `<div style="text-align:center;">
+                                        <div style="font-size:3rem; margin-bottom:10px;">building</div>
+                                        <p style="color:#cbd5e1; margin-bottom:15px;">Al aceptar este empleo, tu empresa actual se cerrará.</p>
+                                        <p style="color:#ef4444; font-weight:700;">Esta acción es irreversible.</p>
+                                    </div>`,
+                                    [
+                                        { text: 'Cancelar', style: 'secondary', fn: null },
+                                        { text: 'CERRAR Y ACEPTAR', style: 'danger', fn: () => performApply(true) }
+                                    ], true
+                                );
+                                return;
+                            }
+                            if (res.success) {
+                                const isGig = vac.type === 'gig';
+                                // Use Blue/Cyan for Permanent Jobs to be distinct from Green (Success)
+                                const themeColor = isGig ? '#facc15' : '#0ea5e9'; // Yellow vs Sky Blue
+                                const icon = isGig ? '⚡' : '👔';
+                                const title = isGig ? '¡TRABAJO TEMPORAL!' : '¡CONTRATO FIRMADO!';
+                                const subTitle = isGig ? 'Trabajo Temporal' : 'Nueva Trayectoria Profesional';
 
-                            // PREMIUM WELCOME MESSAGE
-                            let welcomeMsg = `
+                                // PREMIUM WELCOME MESSAGE
+                                let welcomeMsg = `
                                 <div style="text-align: center; margin-bottom: 20px;">
                                     <div style="font-size: 4rem; margin-bottom: 10px; filter: drop-shadow(0 0 15px ${themeColor}66); animation: bounceIn 0.6s cubic-bezier(0.68, -0.55, 0.265, 1.55);">${icon}</div>
                                     <h3 style="color: ${themeColor}; margin: 0; font-size: 1.6rem; text-shadow: 0 0 10px ${themeColor}4d; font-weight: 800; letter-spacing: 1px;">${title}</h3>
@@ -7196,25 +7363,25 @@ const UI = {
                                 </p>
                             `;
 
-                            if (!GameState.tutorialState.job || vac.title.includes('Reponedor')) {
-                                GameState.tutorialState.job = true;
-                            }
+                                if (!GameState.tutorialState.job || vac.title.includes('Reponedor')) {
+                                    GameState.tutorialState.job = true;
+                                }
 
-                            if (!res.tutorialHandled) {
-                                UI.showModal(' ', welcomeMsg, [{ text: '🚀 ¡Empezar!', style: 'primary', fn: () => UI.updateJob(JobSys) }], true);
+                                if (!res.tutorialHandled) {
+                                    UI.showModal(' ', welcomeMsg, [{ text: '🚀 ¡Empezar!', style: 'primary', fn: () => UI.updateJob(JobSys) }], true);
+                                } else {
+                                    // If tutorial handled it, just update header/dashboard silently in background
+                                    UI.updateJob(JobSys);
+                                }
+
+                                UI.updateHeader();
+                                UI.updateDashboard();
                             } else {
-                                // If tutorial handled it, just update header/dashboard silently in background
-                                UI.updateJob(JobSys);
-                            }
+                                // PREMIUM REJECTION MESSAGE
+                                const themeColor = '#f43f5e'; // Rose
+                                const icon = '🚫';
 
-                            UI.updateHeader();
-                            UI.updateDashboard();
-                        } else {
-                            // PREMIUM REJECTION MESSAGE
-                            const themeColor = '#f43f5e'; // Rose
-                            const icon = '🚫';
-
-                            let rejectMsg = `
+                                let rejectMsg = `
                                 <div style="text-align: center; margin-bottom: 20px;">
                                     <div style="font-size: 4rem; margin-bottom: 10px; filter: drop-shadow(0 0 15px ${themeColor}66); animation: shake 0.5s cubic-bezier(0.36, 0.07, 0.19, 0.97) both;">${icon}</div>
                                     <h3 style="color: ${themeColor}; margin: 0; font-size: 1.5rem; text-shadow: 0 0 10px ${themeColor}4d; font-weight: 800; letter-spacing: 1px;">CANDIDATURA RECHAZADA</h3>
@@ -7239,9 +7406,12 @@ const UI = {
                                 </style>
                             `;
 
-                            UI.showModal(' ', rejectMsg, [{ text: 'Entendido', style: 'secondary', fn: null }], true);
-                        }
+                                UI.showModal(' ', rejectMsg, [{ text: 'Entendido', style: 'secondary', fn: null }], true);
+                            }
+                        };
+                        performApply();
                     };
+
                     marketGrid.appendChild(card);
                 });
                 marketSection.appendChild(marketGrid);
