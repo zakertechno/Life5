@@ -2837,6 +2837,15 @@ const TutorialSystem = {
         this.highlightedElements = [];
     },
 
+    // Lock scroll to prevent disorientation
+    lockScroll() {
+        document.body.style.overflow = 'hidden';
+    },
+
+    unlockScroll() {
+        document.body.style.overflow = '';
+    },
+
     showTooltip(targetSelectorOrElement, title, message, buttonText, onComplete) {
         // Remove existing tooltip
         const existing = document.querySelector('.tutorial-tooltip');
@@ -2866,18 +2875,46 @@ const TutorialSystem = {
         const targetRect = target.getBoundingClientRect();
         const tooltipRect = tooltip.getBoundingClientRect();
 
+        // Default: Above
         let top = targetRect.top - tooltipRect.height - 20;
         let left = targetRect.left + (targetRect.width / 2) - (tooltipRect.width / 2);
+        let arrowClass = 'bottom';
 
-        // Keep within viewport
-        if (top < 10) top = targetRect.bottom + 20;
+        // Check if top flows off screen, if so put below
+        if (top < 10) {
+            top = targetRect.bottom + 20;
+            arrowClass = 'top';
+        }
+
+        // Keep within viewport (horizontal)
         if (left < 10) left = 10;
         if (left + tooltipRect.width > window.innerWidth - 10) {
             left = window.innerWidth - tooltipRect.width - 10;
         }
 
+        // Final check: Bottom screen edge
+        if (top + tooltipRect.height > window.innerHeight - 10) {
+            // If it goes off bottom, force it above even if it's tight, or try center?
+            // Fallback to center screen if completely stuck
+            if (top < 10) {
+                top = window.innerHeight / 2 - tooltipRect.height / 2;
+                left = window.innerWidth / 2 - tooltipRect.width / 2;
+                arrowClass = 'hidden'; // Hide arrow if forced center
+            } else {
+                top = window.innerHeight - tooltipRect.height - 10;
+            }
+        }
+
         tooltip.style.top = top + 'px';
         tooltip.style.left = left + 'px';
+
+        // Update arrow
+        const arrow = tooltip.querySelector('.tutorial-arrow');
+        if (arrowClass === 'hidden') {
+            arrow.style.display = 'none';
+        } else {
+            arrow.className = `tutorial-arrow ${arrowClass}`;
+        }
 
         // Button handler
         tooltip.querySelector('button').onclick = () => {
@@ -3824,26 +3861,71 @@ const TutorialSystem = {
         let attempts = 0;
         const check = setInterval(() => {
             attempts++;
-            const salaryInput = document.getElementById('co-ceo-salary');
+            // New Robust ID Targeting
+            const target = document.getElementById('comp-finance-movements-card');
 
-            if (salaryInput) {
+            if (target) {
                 clearInterval(check);
                 GameState.tutorialFlags.seenCompanyFinance = true;
                 PersistenceModule.saveGame();
 
-                const target = salaryInput.closest('div[style*="background"]');
+                // STEP 1: Cash Movements
                 this.addHighlight(target);
                 target.scrollIntoView({ behavior: 'smooth', block: 'center' });
 
                 this.showTooltip(
                     target,
-                    'Ajusta tu Salario',
-                    'Para empezar con buen pie, <strong>bájate el sueldo a 1000€</strong>.<br><br>Esto ayudará a que la empresa no entre en pérdidas el primer mes.',
-                    'Hecho',
+                    '1. Movimientos de Caja',
+                    'Aquí mueves dinero entre tu empresa y tu bolsillo. <br><br>Puedes <strong>inyectar capital</strong> si falta liquidez o <strong>retirar beneficios</strong> cuando sobren.',
+                    'Siguiente',
                     () => {
                         this.removeHighlights();
-                        this.hideOverlay();
                         this.hideTooltip();
+
+                        // STEP 2: CEO Salary
+                        setTimeout(() => {
+                            const salary = document.getElementById('comp-finance-salary-card');
+                            if (salary) {
+                                this.addHighlight(salary);
+                                salary.scrollIntoView({ behavior: 'smooth', block: 'center' });
+
+                                this.showTooltip(
+                                    salary,
+                                    '2. Tu Salario',
+                                    'Ponte un sueldo de <strong>1500€</strong> para cubrir tus gastos personales sin desangrar la empresa al principio.',
+                                    'Siguiente',
+                                    () => {
+                                        this.removeHighlights();
+                                        this.hideTooltip();
+
+                                        // STEP 3: Danger Zone (Exit)
+                                        setTimeout(() => {
+                                            const danger = document.getElementById('comp-finance-danger-card');
+                                            if (danger) {
+                                                this.addHighlight(danger);
+                                                danger.scrollIntoView({ behavior: 'smooth', block: 'center' });
+
+                                                this.showTooltip(
+                                                    danger,
+                                                    '3. Zona de Peligro',
+                                                    '¿Te has cansado de esta empresa? <br><br>Aquí puedes <strong>VENDERLA (EXIT)</strong> y llevarte el dinero líquido a tu cuenta personal.',
+                                                    'Entendido',
+                                                    () => {
+                                                        this.removeHighlights();
+                                                        this.hideOverlay();
+                                                        this.hideTooltip();
+                                                    }
+                                                );
+                                            } else {
+                                                this.hideOverlay();
+                                            }
+                                        }, 500);
+                                    }
+                                );
+                            } else {
+                                this.hideOverlay();
+                            }
+                        }, 500);
                     }
                 );
             } else {
@@ -3872,6 +3954,9 @@ const TutorialSystem = {
                 clearInterval(check);
                 GameState.tutorialFlags.seenCompanyMarketing = true;
                 PersistenceModule.saveGame();
+
+                // Lock scroll
+                this.lockScroll();
 
                 // STEP 1: Infrastructure
                 this.addHighlight(target);
@@ -3943,48 +4028,66 @@ const TutorialSystem = {
 
 
     // Helper to continue the sequence (split for readability)
+    // Helper to continue the sequence (split for readability)
     continueToMonthlyFlow() {
         this.showOverlay();
         setTimeout(() => {
-            // 1. Cash Flow (Order requested: Cash -> Monthly Flow)
-            const cash = document.querySelector('.metric-card.cash');
-            if (cash) this.addHighlight('.metric-card.cash');
+            // 1. Net Worth (Total Wealth)
+            const netWorth = document.querySelector('.metric-card.net-worth');
+            if (netWorth) this.addHighlight('.metric-card.net-worth');
 
             this.showTooltip(
-                '.metric-card.cash',
-                '💵 Caja (Efectivo)',
-                'El dinero líquido que tienes para gastar o invertir. ¡Si llega a cero, game over!',
+                '.metric-card.net-worth',
+                '🏛️ Patrimonio Neto',
+                'Esto es lo que realmente vales. <br><br>Es la suma de todo tu dinero y propiedades, menos tus deudas. ¡Haz que crezca!',
                 'Siguiente',
                 () => {
                     this.removeHighlights();
                     this.hideTooltip();
 
-                    // 2. Monthly Flow
+                    // 2. Cash (Liquidity)
                     setTimeout(() => {
-                        const mFlow = document.querySelector('.metric-card.monthly-flow');
-                        if (mFlow) this.addHighlight('.metric-card.monthly-flow');
+                        const cash = document.querySelector('.metric-card.cash');
+                        if (cash) this.addHighlight('.metric-card.cash');
 
                         this.showTooltip(
-                            '.metric-card.monthly-flow',
-                            '📉 Flujo Mensual',
-                            'Es la diferencia entre tus ingresos y gastos. Mantenlo positivo para acumular riqueza cada mes.',
-                            'Entendido',
+                            '.metric-card.cash',
+                            '💵 Caja (Efectivo)',
+                            'El dinero líquido que tienes para gastar o invertir. ¡Si llega a cero, game over!',
+                            'Siguiente',
                             () => {
                                 this.removeHighlights();
                                 this.hideTooltip();
-                                this.hideOverlay(); // Remove blocking
 
-                                // Final message
+                                // 3. Monthly Flow
                                 setTimeout(() => {
-                                    showGameAlert(
-                                        '🎉 <strong>¡Tutorial Finalizado!</strong><br><br>' +
-                                        'Ya conoces lo básico. Trabaja, invierte y hazte millonario.<br><br>' +
-                                        'Suerte en la vida real...',
-                                        'success',
-                                        '🎓 Graduado'
+                                    const mFlow = document.querySelector('.metric-card.monthly-flow');
+                                    if (mFlow) this.addHighlight('.metric-card.monthly-flow');
+
+                                    this.showTooltip(
+                                        '.metric-card.monthly-flow',
+                                        '📉 Flujo Mensual',
+                                        'Es la diferencia entre tus ingresos y gastos. Mantenlo positivo para acumular riqueza cada mes.',
+                                        'Entendido',
+                                        () => {
+                                            this.removeHighlights();
+                                            this.hideTooltip();
+                                            this.hideOverlay(); // Remove blocking
+
+                                            // Final message
+                                            setTimeout(() => {
+                                                showGameAlert(
+                                                    '🎉 <strong>¡Tutorial Finalizado!</strong><br><br>' +
+                                                    'Ya conoces lo básico. Trabaja, invierte y hazte millonario.<br><br>' +
+                                                    'Suerte en la vida real...',
+                                                    'success',
+                                                    '🎓 Graduado'
+                                                );
+                                                GameState.tutorialFlags.tutorialComplete = true;
+                                                PersistenceModule.saveGame();
+                                            }, 500);
+                                        }
                                     );
-                                    GameState.tutorialFlags.tutorialComplete = true;
-                                    PersistenceModule.saveGame();
                                 }, 500);
                             }
                         );
@@ -8980,7 +9083,7 @@ const UI = {
                         <div style="display: flex; flex-direction: column; gap: 20px;">
                             
                             <!-- Cash Movements Card -->
-                            <div style="
+                            <div id="comp-finance-movements-card" style="
                                 background: linear-gradient(145deg, rgba(56, 189, 248, 0.1), rgba(14, 165, 233, 0.05));
                                 border: 1px solid rgba(56, 189, 248, 0.3);
                                 border-radius: 16px;
@@ -9052,7 +9155,7 @@ const UI = {
                             </div>
                             
                             <!-- CEO Salary Card -->
-                            <div style="
+                            <div id="comp-finance-salary-card" style="
                                 background: linear-gradient(145deg, rgba(251, 191, 36, 0.1), rgba(245, 158, 11, 0.05));
                                 border: 1px solid rgba(251, 191, 36, 0.3);
                                 border-radius: 16px;
@@ -9099,7 +9202,7 @@ const UI = {
                             </div>
                             
                             <!-- Danger Zone Card -->
-                            <div style="
+                            <div id="comp-finance-danger-card" style="
                                 background: linear-gradient(145deg, rgba(239, 68, 68, 0.1), rgba(220, 38, 38, 0.05));
                                 border: 1px solid rgba(239, 68, 68, 0.3);
                                 border-radius: 16px;
