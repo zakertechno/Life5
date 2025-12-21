@@ -678,6 +678,137 @@ const PersistenceModule = {
 };
 
 /*******************************************************
+ * GAME BALANCE (New "Status Ladder" System)
+ *******************************************************/
+const GameBalance = {
+    // Maps Housing ID to Tier Level (0-12)
+    getHousingTier() {
+        if (!GameState.lifestyle || !GameState.lifestyle.housing) return 0;
+        const h = GameState.lifestyle.housing;
+
+        const tiers = {
+            'parents': 0,
+            'sofa': 1,
+            'pension': 2,
+            'room_cheap': 3,
+            'room': 4,
+            'room_suit': 5,
+            'basement': 6,
+            'studio': 7,
+            'apt_out': 8,
+            'apartment': 9,
+            'loft': 10,
+            'penthouse': 11,
+            'mansion': 12
+        };
+        return tiers[h] !== undefined ? tiers[h] : 0;
+    },
+
+    checkLifestyleReq(req) {
+        if (!req) return { success: true };
+
+        if (req.housing !== undefined) {
+            const currentH = this.getHousingTier();
+            if (currentH < req.housing) return { success: false, message: `Necesitas vivienda Nivel ${req.housing + 1}.` };
+        }
+
+        // Handle both 'vehicle' (legacy) and 'transport' keys
+        const reqTransport = req.transport !== undefined ? req.transport : req.vehicle;
+        if (reqTransport !== undefined) {
+            const currentV = this.getCombinedTier('transport'); // Use 'transport' category
+            if (currentV < reqTransport) return { success: false, message: `Necesitas transporte Nivel ${reqTransport + 1}.` };
+        }
+
+        if (req.clothes !== undefined) {
+            const currentC = this.getCombinedTier('clothes');
+            if (currentC < req.clothes) return { success: false, message: `Necesitas ropa Nivel ${req.clothes + 1}.` };
+        }
+        if (req.leisure !== undefined) {
+            const currentL = this.getCombinedTier('leisure');
+            if (currentL < req.leisure) return { success: false, message: `Necesitas ocio Nivel ${req.leisure + 1}.` };
+        }
+        if (req.food !== undefined) {
+            const currentF = this.getCombinedTier('food');
+            if (currentF < req.food) return { success: false, message: `Necesitas alimentación Nivel ${req.food + 1}.` };
+        }
+        return { success: true };
+    },
+
+    getCombinedTier(category) {
+        // Map common request keys to internal lifestyle keys
+        let lifestyleKey = category;
+        if (category === 'vehicle') lifestyleKey = 'transport'; // Alias
+        if (!GameState.lifestyle || !GameState.lifestyle[lifestyleKey]) return 0;
+        const id = GameState.lifestyle[lifestyleKey];
+
+        // Order matches LifestyleModule definition
+        const orders = {
+            vehicle: ['walk', 'skate', 'bike', 'scooter_el', 'public', 'moto_125', 'moto_big', 'car_old', 'car_new', 'car_premium', 'car_sport', 'supercar', 'chofer'],
+            transport: ['walk', 'skate', 'bike', 'scooter_el', 'public', 'moto_125', 'moto_big', 'car_old', 'car_new', 'car_premium', 'car_sport', 'supercar', 'chofer'], // Alias
+            clothes: ['donations', 'second_hand', 'low_cost', 'basic', 'fast_fashion', 'sport', 'boutique', 'tech', 'suits', 'designer', 'collector'],
+            leisure: ['free', 'library', 'internet', 'basic', 'hobbies', 'active', 'clubbing', 'weekend', 'vip', 'travel', 'exclusive', 'yacht'],
+            food: ['scraps', 'noodles', 'junk', 'cooking_basic', 'cooking', 'menu', 'bio', 'delivery', 'rest_nice', 'chef', 'michelin']
+        };
+
+        // Use the original category for lookup in orders or the mapped one?
+        // My orders object uses 'vehicle' AND 'transport' just to be safe.
+        // Actually orders object keys should match the input to getCombinedTier OR the mapped key. 
+        // Let's use mapped key logic.
+
+        const usedKey = orders[category] ? category : lifestyleKey;
+
+        if (!orders[usedKey]) return 0;
+        const idx = orders[usedKey].indexOf(id);
+        return idx !== -1 ? idx : 0;
+    },
+
+    getLimits() {
+        const tier = this.getHousingTier();
+
+        // 1. STOCK MARKET CAP
+        // Exponential Curve: Base 10k -> Unlimited
+        const stockCaps = [
+            10000,      // Tier 0 (Parents)
+            15000,      // Tier 1 (Sofa)
+            25000,      // Tier 2 (Pension)
+            40000,      // Tier 3 (Hab Interior)
+            60000,      // Tier 4 (Hab Shared)
+            90000,      // Tier 5 (Hab Suite)
+            150000,     // Tier 6 (Basement)
+            250000,     // Tier 7 (Studio)
+            500000,     // Tier 8 (Apt Out)
+            1000000,    // Tier 9 (Apt Center)
+            2500000,    // Tier 10 (Loft)
+            5000000,    // Tier 11 (Penthouse)
+            Infinity    // Tier 12 (Mansion)
+        ];
+
+        // 2. REAL ESTATE CAP (Max properties owned)
+        const reCaps = [
+            2,  // Tier 0
+            2,  // Tier 1
+            2,  // Tier 2
+            3,  // Tier 3
+            4,  // Tier 4
+            4,  // Tier 5
+            5,  // Tier 6
+            6,  // Tier 7
+            8,  // Tier 8
+            12, // Tier 9
+            18, // Tier 10
+            25, // Tier 11
+            Infinity // Tier 12
+        ];
+
+        return {
+            stockCap: stockCaps[tier],
+            reCap: reCaps[tier],
+            tier: tier
+        };
+    }
+};
+
+/*******************************************************
  * STOCK MARKET
  *******************************************************/
 const StockMarket = {
@@ -802,14 +933,16 @@ const StockMarket = {
             }
         });
 
-        // CHECK 1,000,000€ PORTFOLIO LIMIT
-        const portfolioLimit = 1000000;
+        // CHECK PORTFOLIO LIMIT (Game Balance)
+        const limits = GameBalance.getLimits();
+        const portfolioLimit = limits.stockCap;
+
         if (currentPortfolioValue >= portfolioLimit) {
-            return { success: false, message: `Has alcanzado el límite de cartera (${formatCurrency(portfolioLimit)}). Debes vender acciones antes de comprar más.` };
+            return { success: false, message: `Has alcanzado el límite de inversión (${formatCurrency(portfolioLimit)}).<br>Banco: "Necesitas mejorar tu vivienda para que te dejemos invertir más."` };
         }
 
         if (currentPortfolioValue + cost > portfolioLimit) {
-            return { success: false, message: `Esta compra superaría el límite de cartera de ${formatCurrency(portfolioLimit)}. Valor actual: ${formatCurrency(currentPortfolioValue)}.` };
+            return { success: false, message: `Esta compra superaría tu límite actual de ${formatCurrency(portfolioLimit)}.<br>Mejora tu nivel de vida para aumentar tu credibilidad financiera.` };
         }
 
         if (GameState.cash < cost) return { success: false, message: 'Dinero insuficiente' };
@@ -1212,6 +1345,14 @@ const RealEstate = {
     buyProperty(propertyId, useMortgage = true, termYears = 30) {
         const propertyIndex = this.availableProperties.findIndex(p => p.id === propertyId);
         if (propertyIndex === -1) return { success: false, message: 'Propiedad no encontrada' };
+
+        // CHECK REAL ESTATE CAP (Game Balance)
+        const limits = GameBalance.getLimits();
+        const ownedCount = GameState.inventory.realEstate.length;
+        if (ownedCount >= limits.reCap) {
+            return { success: false, message: `Has alcanzado el límite de propiedades (${limits.reCap}).<br>Banco: "Tu vivienda actual no justifica un patrimonio mayor. Múdate a algo mejor."` };
+        }
+
         const property = this.availableProperties[propertyIndex];
         const downPayment = useMortgage ? property.price * property.downPaymentPct : property.price;
         const loanAmount = property.price - downPayment;
@@ -2204,9 +2345,9 @@ const JobSystem = {
     careers: {
         // --- BASICO ---
         'unskilled': [
-            { title: 'Reponedor / Auxiliar', salary: 850, reqMonths: 0, reqEdu: ['bachillerato', 'fp_medio'] },
-            { title: 'Cajero / Atención', salary: 1150, reqMonths: 6, reqEdu: null },
-            { title: 'Supervisor de Planta', salary: 1400, reqMonths: 24, reqEdu: null }
+            { title: 'Reponedor / Auxiliar', salary: 850, reqMonths: 0, reqEdu: ['bachillerato', 'fp_medio'], req: { housing: 2, food: 1 } }, // Pension + Noodles
+            { title: 'Cajero / Atención', salary: 1150, reqMonths: 6, reqEdu: null, req: { housing: 3, food: 2, clothes: 2 } }, // Room + Junk + 2nd Hand
+            { title: 'Supervisor de Planta', salary: 1400, reqMonths: 24, reqEdu: null, req: { housing: 4, food: 3, clothes: 3, leisure: 2 } } // Shared + Cooking + Basic + Net
         ],
 
         // --- TRES DEPORTE (Sin ascensos) ---
@@ -2216,122 +2357,125 @@ const JobSystem = {
 
         // --- FP ADMINISTRACION ---
         'admin_contable': [
-            { title: 'Administrativo contable', salary: 1300, reqMonths: 0, reqEdu: 'fp_admin' },
-            { title: 'Administrativo senior', salary: 1700, reqMonths: 12, reqEdu: 'fp_admin' },
-            { title: 'Técnico de gestión financiera', salary: 2200, reqMonths: 30, reqEdu: 'fp_admin' },
-            { title: 'Responsable administrativo', salary: 3000, reqMonths: 60, reqEdu: 'fp_admin' }
+            { title: 'Administrativo contable', salary: 1300, reqMonths: 0, reqEdu: 'fp_admin', req: { housing: 3, clothes: 3, food: 2 } }, // Independent + Basic Look
+            { title: 'Administrativo senior', salary: 1700, reqMonths: 12, reqEdu: 'fp_admin', req: { housing: 4, clothes: 4, food: 3, leisure: 2 } }, // Shared + Fast Fashion
+            { title: 'Técnico de gestión financiera', salary: 2200, reqMonths: 30, reqEdu: 'fp_admin', req: { housing: 6, clothes: 5, food: 4, transport: 4 } }, // Basement + Sport + Variada + Scooter
+            { title: 'Responsable administrativo', salary: 3000, reqMonths: 60, reqEdu: 'fp_admin', req: { housing: 7, clothes: 6, food: 4, transport: 5 } } // Studio + Boutique + Public
         ],
         'gestor_cobros': [
-            { title: 'Gestor de cobros / facturación', salary: 1300, reqMonths: 0, reqEdu: 'fp_admin' },
-            { title: 'Responsable de facturación', salary: 1700, reqMonths: 12, reqEdu: 'fp_admin' },
-            { title: 'Credit controller', salary: 2200, reqMonths: 30, reqEdu: 'fp_admin' },
-            { title: 'Jefe de admi. de clientes', salary: 3000, reqMonths: 60, reqEdu: 'fp_admin' }
+            { title: 'Gestor de cobros / facturación', salary: 1300, reqMonths: 0, reqEdu: 'fp_admin', req: { housing: 3, clothes: 3 } },
+            { title: 'Responsable de facturación', salary: 1700, reqMonths: 12, reqEdu: 'fp_admin', req: { housing: 4, clothes: 4, food: 3 } },
+            { title: 'Credit controller', salary: 2200, reqMonths: 30, reqEdu: 'fp_admin', req: { housing: 6, clothes: 5, leisure: 3 } },
+            { title: 'Jefe de admi. de clientes', salary: 3000, reqMonths: 60, reqEdu: 'fp_admin', req: { housing: 7, clothes: 6, transport: 5 } }
         ],
         'admin_inmo': [
-            { title: 'Administrativo comercial inmo.', salary: 1300, reqMonths: 0, reqEdu: 'fp_admin' },
-            { title: 'Gestor de operaciones inmo.', salary: 1800, reqMonths: 18, reqEdu: 'fp_admin' },
-            { title: 'Responsable de oficina inmo.', salary: 2400, reqMonths: 36, reqEdu: 'fp_admin' },
-            { title: 'Director de zona', salary: 3200, reqMonths: 72, reqEdu: 'fp_admin' }
+            { title: 'Administrativo comercial inmo.', salary: 1300, reqMonths: 0, reqEdu: 'fp_admin', req: { housing: 3, clothes: 4 } }, // Image matters
+            { title: 'Gestor de operaciones inmo.', salary: 1800, reqMonths: 18, reqEdu: 'fp_admin', req: { housing: 5, clothes: 5, transport: 4 } },
+            { title: 'Responsable de oficina inmo.', salary: 2400, reqMonths: 36, reqEdu: 'fp_admin', req: { housing: 7, clothes: 6, transport: 5, leisure: 4 } },
+            { title: 'Director de zona', salary: 3200, reqMonths: 72, reqEdu: 'fp_admin', req: { housing: 8, clothes: 7, transport: 6, leisure: 5 } } // Apt Out + Boutique + Moto
         ],
 
         // --- FP DAM ---
         'prog_apps': [
-            { title: 'Programador junior (FP)', salary: 1500, reqMonths: 0, reqEdu: ['fp_dam', 'bootcamp'] },
-            { title: 'Programador semi‑senior', salary: 2000, reqMonths: 18, reqEdu: ['fp_dam', 'bootcamp'] },
-            { title: 'Desarrollador senior', salary: 2700, reqMonths: 36, reqEdu: ['fp_dam', 'bootcamp'] },
-            { title: 'Tech lead', salary: 3800, reqMonths: 72, reqEdu: ['fp_dam', 'bootcamp'] }
+            { title: 'Programador junior (FP)', salary: 1500, reqMonths: 0, reqEdu: ['fp_dam', 'bootcamp'], req: { housing: 3, leisure: 2, food: 2 } },
+            { title: 'Programador semi‑senior', salary: 2000, reqMonths: 18, reqEdu: ['fp_dam', 'bootcamp'], req: { housing: 5, leisure: 3, food: 3 } }, // Suite + Internet
+            { title: 'Desarrollador senior', salary: 2700, reqMonths: 36, reqEdu: ['fp_dam', 'bootcamp'], req: { housing: 7, leisure: 5, food: 4, clothes: 4 } }, // Studio + Hobbies
+            { title: 'Tech lead', salary: 3800, reqMonths: 72, reqEdu: ['fp_dam', 'bootcamp'], req: { housing: 9, leisure: 6, food: 5, clothes: 5 } } // Apt Center + Active
         ],
         'sys_support': [
-            { title: 'Técnico de soporte y sistemas', salary: 1400, reqMonths: 0, reqEdu: 'fp_dam' },
-            { title: 'Administrador de sistemas', salary: 1900, reqMonths: 24, reqEdu: 'fp_dam' },
-            { title: 'Ingeniero de sistemas', salary: 2500, reqMonths: 42, reqEdu: 'fp_dam' },
-            { title: 'Responsable infraest. IT', salary: 3500, reqMonths: 72, reqEdu: 'fp_dam' }
+            { title: 'Técnico de soporte y sistemas', salary: 1400, reqMonths: 0, reqEdu: 'fp_dam', req: { housing: 3, leisure: 2 } },
+            { title: 'Administrador de sistemas', salary: 1900, reqMonths: 24, reqEdu: 'fp_dam', req: { housing: 5, leisure: 3, food: 3 } },
+            { title: 'Ingeniero de sistemas', salary: 2500, reqMonths: 42, reqEdu: 'fp_dam', req: { housing: 7, leisure: 4, transport: 4 } },
+            { title: 'Responsable infraest. IT', salary: 3500, reqMonths: 72, reqEdu: 'fp_dam', req: { housing: 8, leisure: 5, transport: 5 } }
         ],
         'mobile_dev': [
-            { title: 'Desarrollador de apps móviles', salary: 1600, reqMonths: 0, reqEdu: ['fp_dam', 'bootcamp'] },
-            { title: 'Mobile developer mid', salary: 2200, reqMonths: 24, reqEdu: ['fp_dam', 'bootcamp'] },
-            { title: 'Senior mobile', salary: 3000, reqMonths: 48, reqEdu: ['fp_dam', 'bootcamp'] },
-            { title: 'Lead mobile / arquitecto', salary: 4000, reqMonths: 84, reqEdu: ['fp_dam', 'bootcamp'] }
+            { title: 'Desarrollador de apps móviles', salary: 1600, reqMonths: 0, reqEdu: ['fp_dam', 'bootcamp'], req: { housing: 4, leisure: 3 } },
+            { title: 'Mobile developer mid', salary: 2200, reqMonths: 24, reqEdu: ['fp_dam', 'bootcamp'], req: { housing: 6, leisure: 4, food: 3 } },
+            { title: 'Senior mobile', salary: 3000, reqMonths: 48, reqEdu: ['fp_dam', 'bootcamp'], req: { housing: 7, leisure: 5, food: 4, clothes: 4 } },
+            { title: 'Lead mobile / arquitecto', salary: 4000, reqMonths: 84, reqEdu: ['fp_dam', 'bootcamp'], req: { housing: 9, leisure: 6, food: 5, transport: 5 } }
         ],
 
         // --- FP MANTENIMIENTO ---
+        // --- FP MANTENIMIENTO ---
+        // --- FP MANTENIMIENTO ---
         'maint_ind': [
-            { title: 'Técnico mantenimiento ind.', salary: 1500, reqMonths: 0, reqEdu: 'fp_maint' },
-            { title: 'Técnico senior', salary: 1900, reqMonths: 24, reqEdu: 'fp_maint' },
-            { title: 'Jefe de equipo', salary: 2400, reqMonths: 48, reqEdu: 'fp_maint' },
-            { title: 'Responsable de planta', salary: 3300, reqMonths: 84, reqEdu: 'fp_maint' }
+            { title: 'Técnico mantenimiento ind.', salary: 1500, reqMonths: 0, reqEdu: 'fp_maint', req: { housing: 3, food: 3 } }, // Physical job needs food
+            { title: 'Técnico senior', salary: 1900, reqMonths: 24, reqEdu: 'fp_maint', req: { housing: 5, food: 4, transport: 4 } },
+            { title: 'Jefe de equipo', salary: 2400, reqMonths: 48, reqEdu: 'fp_maint', req: { housing: 6, food: 4, transport: 5, clothes: 3 } },
+            { title: 'Responsable de planta', salary: 3300, reqMonths: 84, reqEdu: 'fp_maint', req: { housing: 8, food: 5, transport: 6, clothes: 5 } }
         ],
         'clima': [
-            { title: 'Técnico de climatización', salary: 1500, reqMonths: 0, reqEdu: 'fp_maint' },
-            { title: 'Oficial de 1ª', salary: 1900, reqMonths: 24, reqEdu: 'fp_maint' },
-            { title: 'Responsable servicio técnico', salary: 2400, reqMonths: 48, reqEdu: 'fp_maint' },
-            { title: 'Jefe operaciones mant.', salary: 3200, reqMonths: 84, reqEdu: 'fp_maint' }
+            { title: 'Técnico de climatización', salary: 1500, reqMonths: 0, reqEdu: 'fp_maint', req: { housing: 3, food: 3 } },
+            { title: 'Oficial de 1ª', salary: 1900, reqMonths: 24, reqEdu: 'fp_maint', req: { housing: 5, food: 4, transport: 8 } }, // Van
+            { title: 'Responsable servicio técnico', salary: 2400, reqMonths: 48, reqEdu: 'fp_maint', req: { housing: 7, food: 4, transport: 8, clothes: 4 } },
+            { title: 'Jefe operaciones mant.', salary: 3200, reqMonths: 84, reqEdu: 'fp_maint', req: { housing: 8, food: 5, transport: 9, clothes: 5 } }
         ],
         'buildings': [
-            { title: 'Técnico manten. edificios', salary: 1400, reqMonths: 0, reqEdu: 'fp_maint' },
-            { title: 'Encargado de edificio', salary: 1800, reqMonths: 24, reqEdu: 'fp_maint' },
-            { title: 'Supervisor multiedificio', salary: 2300, reqMonths: 48, reqEdu: 'fp_maint' },
-            { title: 'Facility manager', salary: 3200, reqMonths: 84, reqEdu: 'fp_maint' }
+            { title: 'Técnico manten. edificios', salary: 1400, reqMonths: 0, reqEdu: 'fp_maint', req: { housing: 3, food: 3 } },
+            { title: 'Encargado de edificio', salary: 1800, reqMonths: 24, reqEdu: 'fp_maint', req: { housing: 5, food: 4, clothes: 3 } },
+            { title: 'Supervisor multiedificio', salary: 2300, reqMonths: 48, reqEdu: 'fp_maint', req: { housing: 6, food: 4, transport: 4, clothes: 4 } },
+            { title: 'Facility manager', salary: 3200, reqMonths: 84, reqEdu: 'fp_maint', req: { housing: 8, food: 5, transport: 5, clothes: 5 } }
         ],
 
         // --- GRADO ADE ---
         'analyst_fin': [
-            { title: 'Analista financiero', salary: 1600, reqMonths: 0, reqEdu: 'grado_ade' },
-            { title: 'Analista senior', salary: 2300, reqMonths: 36, reqEdu: 'grado_ade' },
-            { title: 'Controller financiero', salary: 3000, reqMonths: 60, reqEdu: 'master_fin' },
-            { title: 'Director financiero (CFO)', salary: 4500, reqMonths: 108, reqEdu: 'master_fin' }
+            { title: 'Analista financiero', salary: 1600, reqMonths: 0, reqEdu: 'grado_ade', req: { housing: 4, clothes: 4, food: 3 } }, // Suit required
+            { title: 'Analista senior', salary: 2300, reqMonths: 36, reqEdu: 'grado_ade', req: { housing: 6, clothes: 5, food: 4, transport: 4 } },
+            { title: 'Controller financiero', salary: 3000, reqMonths: 60, reqEdu: 'master_fin', req: { housing: 8, clothes: 6, food: 5, transport: 5 } },
+            { title: 'Director financiero (CFO)', salary: 4500, reqMonths: 108, reqEdu: 'master_fin', req: { housing: 10, clothes: 8, food: 7, leisure: 7 } } // High Stakes
         ],
         'consultant': [
-            { title: 'Consultor de negocio', salary: 1700, reqMonths: 0, reqEdu: 'grado_ade' },
-            { title: 'Consultor senior', salary: 2500, reqMonths: 36, reqEdu: 'grado_ade' },
-            { title: 'Manager de proyecto', salary: 3500, reqMonths: 72, reqEdu: 'master_fin' },
-            { title: 'Socio / Director', salary: 5000, reqMonths: 120, reqEdu: 'master_fin' }
+            { title: 'Consultor de negocio', salary: 1700, reqMonths: 0, reqEdu: 'grado_ade', req: { housing: 4, clothes: 4, transport: 4 } }, // Travel
+            { title: 'Consultor senior', salary: 2500, reqMonths: 36, reqEdu: 'grado_ade', req: { housing: 7, clothes: 5, transport: 5, food: 4 } },
+            { title: 'Manager de proyecto', salary: 3500, reqMonths: 72, reqEdu: 'master_fin', req: { housing: 9, clothes: 7, transport: 7, food: 6 } }, // High appearance reqs
+            { title: 'Socio / Director', salary: 5000, reqMonths: 120, reqEdu: 'master_fin', req: { housing: 11, clothes: 9, housing: 10, food: 8, leisure: 8 } } // Exec High Stakes
         ],
         'sales_b2b': [
-            { title: 'Gestor de cuentas empresa', salary: 1600, reqMonths: 0, reqEdu: 'grado_ade' },
-            { title: 'Key account manager', salary: 2300, reqMonths: 36, reqEdu: 'grado_ade' },
-            { title: 'Sales manager', salary: 3200, reqMonths: 72, reqEdu: 'grado_ade' },
-            { title: 'Director comercial', salary: 4500, reqMonths: 108, reqEdu: 'master_fin' }
+            { title: 'Gestor de cuentas empresa', salary: 1600, reqMonths: 0, reqEdu: 'grado_ade', req: { housing: 4, clothes: 4 } },
+            { title: 'Key account manager', salary: 2300, reqMonths: 36, reqEdu: 'grado_ade', req: { housing: 6, clothes: 5, leisure: 4 } }, // Networking
+            { title: 'Sales manager', salary: 3200, reqMonths: 72, reqEdu: 'grado_ade', req: { housing: 8, clothes: 7, leisure: 6, food: 5 } },
+            { title: 'Director comercial', salary: 4500, reqMonths: 108, reqEdu: 'master_fin', req: { housing: 10, clothes: 8, leisure: 7, food: 6 } }
         ],
 
         // --- GRADO INFORMATICA ---
         'swe': [
-            { title: 'Ingeniero de software', salary: 1800, reqMonths: 0, reqEdu: 'grado_cs' },
-            { title: 'Software engineer mid', salary: 2500, reqMonths: 24, reqEdu: 'grado_cs' },
-            { title: 'Senior software engineer', salary: 3400, reqMonths: 60, reqEdu: 'grado_cs' },
-            { title: 'Engineering manager', salary: 4800, reqMonths: 108, reqEdu: 'master_ai' }
+            { title: 'Ingeniero de software', salary: 1800, reqMonths: 0, reqEdu: 'grado_cs', req: { housing: 4, leisure: 3, food: 3 } }, // High leisure (setup)
+            { title: 'Software engineer mid', salary: 2500, reqMonths: 24, reqEdu: 'grado_cs', req: { housing: 6, leisure: 5, food: 4 } },
+            { title: 'Senior software engineer', salary: 3400, reqMonths: 60, reqEdu: 'grado_cs', req: { housing: 8, leisure: 6, food: 5, clothes: 4 } },
+            { title: 'Engineering manager', salary: 4800, reqMonths: 108, reqEdu: 'master_ai', req: { housing: 10, leisure: 8, food: 6, clothes: 6 } } // Exec
         ],
         'data': [
-            { title: 'Data analyst / BI', salary: 1700, reqMonths: 0, reqEdu: 'grado_cs' },
-            { title: 'Data analyst senior', salary: 2400, reqMonths: 36, reqEdu: 'grado_cs' },
-            { title: 'Data scientist', salary: 3300, reqMonths: 60, reqEdu: 'master_ai' },
-            { title: 'Head of data', salary: 5000, reqMonths: 108, reqEdu: 'master_ai' }
+            { title: 'Data analyst / BI', salary: 1700, reqMonths: 0, reqEdu: 'grado_cs', req: { housing: 4, leisure: 3 } },
+            { title: 'Data analyst senior', salary: 2400, reqMonths: 36, reqEdu: 'grado_cs', req: { housing: 6, leisure: 5, food: 3 } },
+            { title: 'Data scientist', salary: 3300, reqMonths: 60, reqEdu: 'master_ai', req: { housing: 8, leisure: 7, food: 5, transport: 4 } },
+            { title: 'Head of data', salary: 5000, reqMonths: 108, reqEdu: 'master_ai', req: { housing: 10, leisure: 8, food: 6, clothes: 5 } }
         ],
         'devops': [
-            { title: 'DevOps / cloud engineer', salary: 1800, reqMonths: 0, reqEdu: 'grado_cs' },
-            { title: 'DevOps mid', salary: 2600, reqMonths: 36, reqEdu: 'grado_cs' },
-            { title: 'Senior / Cloud architect', salary: 3600, reqMonths: 72, reqEdu: 'grado_cs' },
-            { title: 'Director infraest. cloud', salary: 5000, reqMonths: 120, reqEdu: 'master_ai' }
+            { title: 'DevOps / cloud engineer', salary: 1800, reqMonths: 0, reqEdu: 'grado_cs', req: { housing: 4, leisure: 3 } },
+            { title: 'DevOps mid', salary: 2600, reqMonths: 36, reqEdu: 'grado_cs', req: { housing: 6, leisure: 5, food: 4 } },
+            { title: 'Senior / Cloud architect', salary: 3600, reqMonths: 72, reqEdu: 'grado_cs', req: { housing: 9, leisure: 7, food: 5 } },
+            { title: 'Director infraest. cloud', salary: 5000, reqMonths: 120, reqEdu: 'master_ai', req: { housing: 10, leisure: 8, food: 6, transport: 5 } }
         ],
 
         // --- GRADO CIVIL ---
+        // --- GRADO CIVIL ---
         'ing_obra': [
-            { title: 'Ingeniero de obra', salary: 1700, reqMonths: 0, reqEdu: 'grado_civil' },
-            { title: 'Jefe de obra', salary: 2400, reqMonths: 36, reqEdu: 'grado_civil' },
-            { title: 'Jefe de proyecto', salary: 3300, reqMonths: 72, reqEdu: 'master_ing' },
-            { title: 'Director construcción', salary: 4700, reqMonths: 120, reqEdu: 'master_ing' }
+            { title: 'Ingeniero de obra', salary: 1700, reqMonths: 0, reqEdu: 'grado_civil', req: { housing: 4, food: 3, transport: 4 } }, // Travel + Food
+            { title: 'Jefe de obra', salary: 2400, reqMonths: 36, reqEdu: 'grado_civil', req: { housing: 6, food: 4, transport: 5, clothes: 3 } },
+            { title: 'Jefe de proyecto', salary: 3300, reqMonths: 72, reqEdu: 'master_ing', req: { housing: 8, food: 5, transport: 6, clothes: 5 } },
+            { title: 'Director construcción', salary: 4700, reqMonths: 120, reqEdu: 'master_ing', req: { housing: 10, food: 6, transport: 7, clothes: 6 } }
         ],
         'oficina_tecnica': [
-            { title: 'Técnico oficina técnica', salary: 1600, reqMonths: 0, reqEdu: 'grado_civil' },
-            { title: 'Ingeniero de proyectos', salary: 2300, reqMonths: 36, reqEdu: 'grado_civil' },
-            { title: 'Responsable of. técnica', salary: 3000, reqMonths: 72, reqEdu: 'grado_civil' },
-            { title: 'Director técnico', salary: 4300, reqMonths: 108, reqEdu: 'master_ing' }
+            { title: 'Técnico oficina técnica', salary: 1600, reqMonths: 0, reqEdu: 'grado_civil', req: { housing: 4, food: 2 } },
+            { title: 'Ingeniero de proyectos', salary: 2300, reqMonths: 36, reqEdu: 'grado_civil', req: { housing: 6, food: 3, transport: 4 } },
+            { title: 'Responsable of. técnica', salary: 3000, reqMonths: 72, reqEdu: 'grado_civil', req: { housing: 8, food: 4, transport: 5, leisure: 4 } },
+            { title: 'Director técnico', salary: 4300, reqMonths: 108, reqEdu: 'master_ing', req: { housing: 10, food: 5, transport: 6, clothes: 5 } }
         ],
         'urbz_consult': [
-            { title: 'Consultor ingeniería / urb.', salary: 1700, reqMonths: 0, reqEdu: 'grado_civil' },
-            { title: 'Consultor senior', salary: 2500, reqMonths: 48, reqEdu: 'grado_civil' },
-            { title: 'Manager consultoría', salary: 3400, reqMonths: 84, reqEdu: 'master_ing' },
-            { title: 'Socio / Director cons.', salary: 5000, reqMonths: 132, reqEdu: 'master_ing' }
+            { title: 'Consultor ingeniería / urb.', salary: 1700, reqMonths: 0, reqEdu: 'grado_civil', req: { housing: 4, clothes: 4, transport: 4 } },
+            { title: 'Consultor senior', salary: 2500, reqMonths: 48, reqEdu: 'grado_civil', req: { housing: 7, clothes: 5, transport: 5 } },
+            { title: 'Manager consultoría', salary: 3400, reqMonths: 84, reqEdu: 'master_ing', req: { housing: 9, clothes: 6, transport: 6, food: 5 } },
+            { title: 'Socio / Director cons.', salary: 5000, reqMonths: 132, reqEdu: 'master_ing', req: { housing: 11, clothes: 8, transport: 7, food: 7 } }
         ]
     },
     get currentCareerPath() { return GameState.currentCareerPath || 'none'; },
@@ -2495,6 +2639,14 @@ const JobSystem = {
             if (!this.checkEducation(nextJob.reqEdu)) return { success: false, message: `Necesitas estudios de tipo: ${nextJob.reqEdu}` };
         }
 
+        // LIFESTYLE REQUIREMENTS (Status Ladder)
+        if (nextJob.req) {
+            const lsCheck = GameBalance.checkLifestyleReq(nextJob.req);
+            if (!lsCheck.success) {
+                return { success: false, message: `RRHH: "${lsCheck.message}"` };
+            }
+        }
+
         // SUCCESSFUL PROMOTION
         GameState.salary = nextJob.salary;
         GameState.jobTitle = nextJob.title;
@@ -2628,6 +2780,14 @@ const JobSystem = {
         if (!targetJob) return { success: false, message: 'Oferta no válida.' };
         if (targetJob.reqEdu && !this.checkEducation(targetJob.reqEdu)) {
             return { success: false, message: `Requisito académico no cumplido: ${targetJob.reqEdu}` };
+        }
+
+        // LIFESTYLE CHECK FOR ENTRY LEVEL AND LATERAL MOVES
+        if (targetJob.req) {
+            const lsCheck = GameBalance.checkLifestyleReq(targetJob.req);
+            if (!lsCheck.success) {
+                return { success: false, message: `Requisitos de estatus no cumplidos: ${lsCheck.message}` };
+            }
         }
 
         // STRICT EXPERIENCE CHECK
@@ -5009,12 +5169,32 @@ const UI = {
         const returnDir = totalReturn >= 0 ? '+' : '';
         const returnClass = totalReturn >= 0 ? '#4ade80' : '#f87171';
 
+        // NEW: Get Limits
+        const limits = GameBalance.getLimits();
+        const limitDisp = limits.stockCap === Infinity ? '∞' : formatCurrency(limits.stockCap);
+        const limitPct = limits.stockCap === Infinity ? 0 : Math.min(100, (portValue / limits.stockCap) * 100);
+        const isLimitReached = limits.stockCap !== Infinity && portValue >= limits.stockCap;
+
         // RENDER
         container.innerHTML = `
                     <div class="dashboard-container">
                         <div class="section-header">
                             <h2>Mercado de Valores</h2>
                             <span style="color:#94a3b8; font-size:0.9rem;">IBEX 35</span>
+                        </div>
+
+                        <!-- LIMIT ALERT MOCKUP -->
+                        <div style="margin-bottom: 20px; background: #0f172a; border: 1px solid #334155; border-radius: 12px; padding: 15px;">
+                             <div style="display:flex; justify-content:space-between; margin-bottom: 8px;">
+                                <span style="color:#94a3b8; font-size:0.85rem;">Límite de Cartera (Según Vivienda)</span>
+                                <span style="color:${isLimitReached ? '#f87171' : '#cbd5e1'}; font-weight:700; font-size:0.9rem;">
+                                    ${formatCurrency(portValue)} / ${limitDisp}
+                                </span>
+                            </div>
+                            <div style="background:#1e293b; height:8px; border-radius:4px; overflow:hidden;">
+                                <div style="width:${limitPct}%; height:100%; background:${isLimitReached ? '#f87171' : '#38bdf8'}; transition: width 0.3s;"></div>
+                            </div>
+                            ${isLimitReached ? '<div style="color:#f87171; font-size:0.8rem; margin-top:5px;">⚠️ Has alcanzado tu límite de inversión. Mejora tu vivienda para invertir más.</div>' : ''}
                         </div>
 
                         <!-- MARKET HERO - Premium Design -->
@@ -5645,6 +5825,29 @@ const UI = {
                             <span style="color:#94a3b8; font-size:0.9rem;">Propiedades: ${owned.length}</span>
                         </div>
 
+                        <!-- LIMIT ALERT Real Estate -->
+                        ${(() => {
+                const limits = GameBalance.getLimits();
+                const limitDisp = limits.reCap === Infinity ? '∞' : limits.reCap;
+                const limitPct = limits.reCap === Infinity ? 0 : Math.min(100, (owned.length / limits.reCap) * 100);
+                const isLimitReached = limits.reCap !== Infinity && owned.length >= limits.reCap;
+
+                return `
+                            <div style="margin-bottom: 20px; background: #0f172a; border: 1px solid #334155; border-radius: 12px; padding: 15px;">
+                                <div style="display:flex; justify-content:space-between; margin-bottom: 8px;">
+                                    <span style="color:#94a3b8; font-size:0.85rem;">Límite de Propiedades (Según Vivienda)</span>
+                                    <span style="color:${isLimitReached ? '#f87171' : '#cbd5e1'}; font-weight:700; font-size:0.9rem;">
+                                        ${owned.length} / ${limitDisp}
+                                    </span>
+                                </div>
+                                <div style="background:#1e293b; height:8px; border-radius:4px; overflow:hidden;">
+                                    <div style="width:${limitPct}%; height:100%; background:${isLimitReached ? '#f87171' : '#a855f7'}; transition: width 0.3s;"></div>
+                                </div>
+                                ${isLimitReached ? '<div style="color:#f87171; font-size:0.8rem; margin-top:5px;">⚠️ Has alcanzado tu límite de propiedades. Mejora tu vivienda para expandir tu imperio.</div>' : ''}
+                            </div>
+                            `;
+            })()}
+
                         <!-- HERO STATS - Premium Design -->
                         <div class="re-stats-container" style="display:flex; flex-wrap:wrap; gap:15px; margin-bottom:25px;">
                             <div class="re-stat-card" style="flex:2; min-width: 200px; background: linear-gradient(145deg, rgba(250, 204, 21, 0.1), rgba(251, 191, 36, 0.05)); border: 1px solid rgba(250, 204, 21, 0.3); border-radius: 16px; padding: 20px; text-align: center; position: relative; overflow: hidden;">
@@ -5669,13 +5872,13 @@ const UI = {
                             <h3 style="color:#cbd5e1; margin-bottom:20px;">🏙️ Mercado Inmobiliario</h3>
                             <div class="market-grid">
                                 ${properties.map(prop => {
-            const pricePerM2 = prop.price / prop.sizeM2;
-            const isGoodDeal = pricePerM2 < prop.zoneAvgPrice;
-            const dealText = isGoodDeal ? 'Chollo' : 'Sobreprecio';
-            const dealClass = isGoodDeal ? 'good-deal' : 'bad-deal';
-            const roi = (prop.monthlyRent * 12) / prop.price;
+                const pricePerM2 = prop.price / prop.sizeM2;
+                const isGoodDeal = pricePerM2 < prop.zoneAvgPrice;
+                const dealText = isGoodDeal ? 'Chollo' : 'Sobreprecio';
+                const dealClass = isGoodDeal ? 'good-deal' : 'bad-deal';
+                const roi = (prop.monthlyRent * 12) / prop.price;
 
-            return `
+                return `
                                     <div class="property-card-expert">
                                         <div class="prop-img" style="display:flex; align-items:center; justify-content:center; background:#1e293b; font-size:4rem;">
                                             ${prop.icon || '🏠'}
@@ -5711,7 +5914,7 @@ const UI = {
                                         </div>
                                     </div>
                                     `;
-        }).join('')}
+            }).join('')}
                             </div>
                         </div>
 
@@ -7510,40 +7713,151 @@ const UI = {
                         const isEduOk = !nextJobInPath.reqEdu || JobSys.checkEducation(nextJobInPath.reqEdu);
                         const isTimeOk = currentMonths >= reqMonths;
 
+                        // LIFESTYLE CHECKS & PREMIUM TAG GENERATION
+                        let isLifestyleOk = true;
+                        let premiumTagsHTML = '';
+
+                        if (nextJobInPath.req) {
+                            const r = nextJobInPath.req;
+
+                            // Helper for Premium Tag
+                            const createTag = (label, level, currentLevel, icon, typeKey) => {
+                                const ok = currentLevel >= level;
+                                if (!ok) isLifestyleOk = false;
+                                return `
+                                    <div style="
+                                        background:${ok ? 'rgba(16, 185, 129, 0.1)' : 'rgba(239, 68, 68, 0.1)'}; 
+                                        border:1px solid ${ok ? 'rgba(16, 185, 129, 0.2)' : 'rgba(239, 68, 68, 0.2)'}; 
+                                        border-radius:12px; 
+                                        padding:12px; 
+                                        display:flex; 
+                                        align-items:center; 
+                                        gap:12px;
+                                        transition:all 0.2s ease;
+                                    ">
+                                        <div style="
+                                            font-size:1.5rem; 
+                                            filter:drop-shadow(0 2px 4px ${ok ? 'rgba(16, 185, 129, 0.3)' : 'rgba(239, 68, 68, 0.3)'});
+                                        ">${icon}</div>
+                                        <div style="display:flex; flex-direction:column; line-height:1.2;">
+                                            <span style="font-size:0.65rem; font-weight:700; text-transform:uppercase; color:${ok ? '#34d399' : '#f87171'}">
+                                                ${ok ? 'CUMPLIDO' : 'REQUERIDO'}
+                                            </span>
+                                            <span style="font-size:0.85rem; font-weight:600; color:#f1f5f9;">
+                                                ${label} <span style="color:#94a3b8;">(Nv. ${level + 1})</span>
+                                            </span>
+                                        </div>
+                                    </div>`;
+                            };
+
+                            // Housing Check
+                            if (r.housing !== undefined) {
+                                premiumTagsHTML += createTag('Vivienda', r.housing, GameBalance.getHousingTier(), '🏠', 'housing');
+                            }
+
+                            // Vehicle/Transport Check
+                            const reqTrans = r.transport !== undefined ? r.transport : r.vehicle;
+                            if (reqTrans !== undefined) {
+                                premiumTagsHTML += createTag('Transporte', reqTrans, GameBalance.getCombinedTier('transport'), '🚗', 'transport');
+                            }
+
+                            // Food Check
+                            if (r.food !== undefined) {
+                                premiumTagsHTML += createTag('Dieta', r.food, GameBalance.getCombinedTier('food'), '🥗', 'food');
+                            }
+
+                            // Clothes Check
+                            if (r.clothes !== undefined) {
+                                premiumTagsHTML += createTag('Imagen', r.clothes, GameBalance.getCombinedTier('clothes'), '👔', 'clothes');
+                            }
+
+                            // Leisure Check
+                            if (r.leisure !== undefined) {
+                                premiumTagsHTML += createTag('Ocio', r.leisure, GameBalance.getCombinedTier('leisure'), '🎉', 'leisure');
+                            }
+                        }
+
                         const nextCard = document.createElement('div');
                         nextCard.className = 'job-promo-card';
+                        // Premium Style Override
+                        nextCard.style.background = 'linear-gradient(145deg, rgba(30, 41, 59, 0.9), rgba(15, 23, 42, 0.95))';
+                        nextCard.style.border = '1px solid rgba(148, 163, 184, 0.1)';
+                        nextCard.style.borderRadius = '16px';
+                        nextCard.style.padding = '20px';
+                        nextCard.style.boxShadow = '0 10px 15px -3px rgba(0, 0, 0, 0.3)';
+                        nextCard.style.position = 'relative';
+                        nextCard.style.overflow = 'hidden';
+
+                        // Calculate status colors
+                        const isReady = canPromote && isEduOk && isLifestyleOk;
+                        const cardAccent = isReady ? '#10b981' : '#64748b'; // Green vs Slate
+
                         nextCard.innerHTML = `
-                                <div class="job-promo-header">
-                                    <div class="job-promo-title">
-                                        <span>🚀 Siguiente Ascenso: ${nextJobInPath.title}</span>
+                                <div style="position:absolute; top:0; left:0; width:100%; height:4px; background:${isReady ? 'linear-gradient(90deg, #10b981, #34d399)' : '#334155'};"></div>
+                                
+                                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
+                                    <div>
+                                        <div style="font-size:0.75rem; text-transform:uppercase; letter-spacing:1px; color:#cbd5e1; margin-bottom:4px;">PRÓXIMO OBJETIVO</div>
+                                        <div style="font-size:1.25rem; font-weight:700; color:#f8fafc; display:flex; align-items:center; gap:10px;">
+                                            <span>${nextJobInPath.title}</span>
+                                            ${isReady ? '<span style="font-size:0.8rem; background:rgba(16, 185, 129, 0.2); color:#34d399; padding:2px 8px; border-radius:12px; border:1px solid rgba(16, 185, 129, 0.3);">LISTO</span>' : ''}
+                                        </div>
                                     </div>
-                                    <div class="job-promo-salary">+${formatCurrency(nextJobInPath.salary - GameState.salary)}/mes</div>
+                                    <div style="text-align:right;">
+                                        <div style="font-size:0.8rem; color:#94a3b8;">Incremento Salarial</div>
+                                        <div style="font-size:1.1rem; font-weight:700; color:#fbbf24; text-shadow:0 0 10px rgba(251, 191, 36, 0.2);">+${formatCurrency(nextJobInPath.salary - GameState.salary)}</div>
+                                    </div>
                                 </div>
                                 
-                                <div style="margin-bottom:20px;">
-                                    <div style="display:flex; justify-content:space-between; font-size:0.85rem; color:#cbd5e1; margin-bottom:5px;">
-                                        <span>Experiencia Requerida</span>
-                                        <span>${Math.floor(currentMonths)} / ${reqMonths} meses</span>
+                                <!-- EXPERIENCE BAR PREMIUM -->
+                                <div style="margin-bottom:20px; background:rgba(15, 23, 42, 0.6); padding:15px; border-radius:12px; border:1px solid rgba(255,255,255,0.05);">
+                                    <div style="display:flex; justify-content:space-between; font-size:0.85rem; color:#cbd5e1; margin-bottom:8px;">
+                                        <span style="display:flex; align-items:center; gap:5px;">⏱️ Experiencia</span>
+                                        <span style="font-family:monospace; color:${isTimeOk ? '#34d399' : '#94a3b8'}">${Math.floor(currentMonths)} / ${reqMonths} meses</span>
                                     </div>
-                                    <div class="edu-bar-bg"><div class="edu-bar-fill" style="width:${progress}%"></div></div>
+                                    <div style="height:8px; background:#1e293b; border-radius:4px; overflow:hidden;">
+                                        <div style="width:${progress}%; height:100%; background:${isTimeOk ? 'linear-gradient(90deg, #10b981, #34d399)' : '#3b82f6'}; transition:width 0.5s ease; box-shadow:0 0 10px rgba(59, 130, 246, 0.3);"></div>
+                                    </div>
                                 </div>
 
-                                <div style="display:flex; gap:10px; margin-bottom:20px; flex-wrap:wrap;">
-                                    <span class="req-tag ${isTimeOk ? 'success' : 'fail'}">
-                                        ${isTimeOk ? '✓' : '⏳'} Experiencia
-                                    </span>
-                                    ${nextJobInPath.reqEdu ? `
-                                        <span class="req-tag ${isEduOk ? 'success' : 'fail'}">
-                                            ${isEduOk ? '✓' : '❌'} ${UI.getLabel(nextJobInPath.reqEdu)}
-                                        </span>
-                                    ` : ''}
+                                <!-- REQUIREMENTS GRID -->
+                                <div style="margin-bottom:25px;">
+                                    <div style="font-size:0.75rem; text-transform:uppercase; color:#64748b; margin-bottom:10px; padding-left:5px;">REQUISITOS DE ACCESO</div>
+                                    <div style="display:grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap:10px;">
+                                        
+                                        <!-- EDUCATION TAG -->
+                                        ${nextJobInPath.reqEdu ? `
+                                            <div style="background:${isEduOk ? 'rgba(16, 185, 129, 0.1)' : 'rgba(239, 68, 68, 0.1)'}; border:1px solid ${isEduOk ? 'rgba(16, 185, 129, 0.2)' : 'rgba(239, 68, 68, 0.2)'}; border-radius:8px; padding:10px; display:flex; align-items:center; gap:10px;">
+                                                <div style="font-size:1.2rem;">${isEduOk ? '🎓' : '📚'}</div>
+                                                <div style="display:flex; flex-direction:column;">
+                                                    <span style="font-size:0.7rem; color:${isEduOk ? '#34d399' : '#f87171'}">${isEduOk ? 'CUMPLIDO' : 'FALTA TÍTULO'}</span>
+                                                    <span style="font-size:0.8rem; font-weight:600; color:#e2e8f0;">${UI.getLabel(nextJobInPath.reqEdu)}</span>
+                                                </div>
+                                            </div>
+                                        ` : ''}
+
+                                        <!-- LIFESTYLE TAGS INJECTED -->
+                                        ${premiumTagsHTML}
+                                    </div>
                                 </div>
 
-                                <button id="btn-promote" class="btn-primary" ${canPromote && isEduOk ? '' : 'disabled'}>
-                                    Solicitar Ascenso
+                                <button id="btn-promote" class="btn-premium-action" ${isReady ? '' : 'disabled'} 
+                                    style="width:100%; padding:15px; border-radius:12px; border:none; 
+                                    background:${isReady ? 'linear-gradient(135deg, #2563eb, #1d4ed8)' : '#334155'}; 
+                                    color:${isReady ? '#fff' : '#94a3b8'}; font-weight:700; font-size:1rem; 
+                                    cursor:${isReady ? 'pointer' : 'not-allowed'}; 
+                                    box-shadow:${isReady ? '0 10px 20px -5px rgba(37, 99, 235, 0.4)' : 'none'}; 
+                                    transition:all 0.2s ease;">
+                                    ${!isReady ? '🔒 Requisitos Pendientes' : '✨ Solicitar Ascenso'}
                                 </button>
                             `;
-                        if (canPromote && isEduOk) {
+
+                        // RE-GENERATE TAGS FOR PREMIUM GRID
+                        // We do this via JS after render to keep code clean, or we could refactor the loop above.
+                        // Let's refactor the loop above in a separate replacement chunk to generate 'premiumTagsHTML' 
+                        // instead of the old span tags.
+
+                        if (canPromote && isEduOk && isLifestyleOk) {
                             nextCard.querySelector('#btn-promote').onclick = () => {
                                 const res = JobSys.promote();
                                 if (res.success) {
