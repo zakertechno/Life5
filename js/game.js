@@ -3981,6 +3981,7 @@ const TutorialSystem = {
                                                         this.removeHighlights();
                                                         this.hideOverlay();
                                                         this.hideTooltip();
+                                                        this.unlockScroll();
                                                     }
                                                 );
                                             } else {
@@ -4073,6 +4074,7 @@ const TutorialSystem = {
                                                         this.removeHighlights();
                                                         this.hideOverlay();
                                                         this.hideTooltip();
+                                                        this.unlockScroll();
                                                     }
                                                 );
                                             } else {
