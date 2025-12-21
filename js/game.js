@@ -2353,14 +2353,14 @@ const JobSystem = {
     careers: {
         // --- BASICO ---
         'unskilled': [
-            { title: 'Reponedor / Auxiliar', salary: 850, reqMonths: 0, reqEdu: ['bachillerato', 'fp_medio'], req: { housing: 2, food: 1 } }, // Pension + Noodles
+            { title: 'Reponedor / Auxiliar', salary: 700, reqMonths: 0, reqEdu: ['bachillerato', 'fp_medio'], req: null }, // Entry Level: No reqs
             { title: 'Cajero / Atención', salary: 1150, reqMonths: 6, reqEdu: null, req: { housing: 3, food: 2, clothes: 2 } }, // Room + Junk + 2nd Hand
             { title: 'Supervisor de Planta', salary: 1400, reqMonths: 24, reqEdu: null, req: { housing: 4, food: 3, clothes: 3, leisure: 2 } } // Shared + Cooking + Basic + Net
         ],
 
         // --- TRES DEPORTE (Sin ascensos) ---
         'tres_deporte': [
-            { title: 'TRES DEPORTE', salary: 950, reqMonths: 0, reqEdu: 'bachillerato' }
+            { title: 'TRES DEPORTE', salary: 800, reqMonths: 0, reqEdu: 'bachillerato', req: null }
         ],
 
         // --- FP ADMINISTRACION ---
@@ -3457,7 +3457,8 @@ const TutorialSystem = {
                         this.addHighlight('.company-dashboard-full-view');
                     }
                 }
-            }
+            },
+            true
         );
     },
 
