@@ -1788,7 +1788,12 @@ const CompanyModule = {
             staff: [],
 
             events: [],
-            age: 0
+            age: 0,
+
+            // Upgrades
+            upgrades: {
+                autoPayroll: false
+            }
         };
 
         GameState.jobTitle = `CEO de ${name}`;
@@ -1806,14 +1811,22 @@ const CompanyModule = {
             return { success: false, message: `Límite de personal alcanzado (${co.maxStaff}). Mejora tu oficina.` };
         }
 
-        co.staff.push({
+        const newEmp = {
             name: name || role,
             role: role,
             salary: salary,
             startWage: salary,
             skill: skill || 0.5,
             morale: 0.8
-        });
+        };
+
+        // Initialize requiredWage immediately
+        const calculationSkill = Math.min(1.0, newEmp.skill);
+        const wageSteps = Math.floor((calculationSkill - 0.5) / 0.1);
+        const increasePct = Math.max(0, wageSteps * 0.10);
+        newEmp.requiredWage = Math.floor(newEmp.startWage * (1 + increasePct));
+
+        co.staff.push(newEmp);
         return { success: true, message: `¡${name || role} contratado!` };
     },
 
@@ -1859,48 +1872,43 @@ const CompanyModule = {
         return { success: true, message: `¡Oficina ampliada! Nuevo límite: ${nextLimit} empleados.` };
     },
 
-    hireManager() {
+    buyUpgrade(upgradeId) {
         if (!GameState.company) return;
         const co = GameState.company;
-        const loc = this.locations[co.locationId];
-        const locationMaxStaff = loc?.maxStaff || 15;
 
-        // Check if company is at max capacity for this location
-        if (co.staff.length < locationMaxStaff || co.maxStaff < locationMaxStaff) {
-            return { success: false, message: `Necesitas una empresa completa (${locationMaxStaff} empleados) para automatizar en ${co.locationName}.` };
+        if (upgradeId === 'autoPayroll') {
+            if (co.upgrades && co.upgrades.autoPayroll) return { success: false, message: 'Ya tienes esta mejora.' };
+
+            // Req: Office Level > 1 (Implies maxStaff > 5 for standard tiers)
+            if (co.maxStaff <= 5) return { success: false, message: 'Requisito: Negocio Nivel 2+.' };
+
+            const cost = 25000;
+            if (co.cash < cost) return { success: false, message: `Faltan fondos. Coste: ${formatCurrency(cost)}` };
+
+            co.cash -= cost;
+            if (!co.upgrades) co.upgrades = {};
+            co.upgrades.autoPayroll = true;
+            const themeColor = '#10b981'; // Emerald
+            const successHtml = `
+                <div style="text-align: center; margin-bottom: 20px;">
+                    <div style="font-size: 4rem; margin-bottom: 10px; filter: drop-shadow(0 0 15px ${themeColor}66); animation: bounceIn 0.6s cubic-bezier(0.68, -0.55, 0.265, 1.55);">📋</div>
+                    <h3 style="color: ${themeColor}; margin: 0; font-size: 1.6rem; text-shadow: 0 0 10px ${themeColor}4d; font-weight: 800; letter-spacing: 1px;">¡RRHH ACTIVADO!</h3>
+                </div>
+                
+                <div style="background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.3); border-radius: 12px; padding: 20px; margin-bottom: 20px;">
+                    <p style="color: #fff; font-size: 1.1rem; line-height: 1.5; margin: 0; font-weight: 600;">
+                        "¡Ya no se preocupe por el salario de los empleados, el departamento de RRHH se encargará!"
+                    </p>
+                </div>
+
+                <p style="text-align: center; color: #94a3b8; font-size: 0.9rem; margin: 0;">
+                    Las subidas salariales ahora son automáticas.
+                </p>
+            `;
+            return { success: true, message: successHtml };
         }
-
-        const cost = Math.max(30000, co.profitLastMonth * 3);
-        if (co.cash < cost) return { success: false, message: `Necesitas ${formatCurrency(cost)} para contratar al Gerente y automatizar.` };
-
-        co.cash -= cost;
-
-        if (!GameState.ownedCompanies) GameState.ownedCompanies = [];
-
-        const history = co.financialHistory || [];
-        const last3 = history.slice(-3);
-        let totalProfit = 0;
-        last3.forEach(h => totalProfit += h.profit);
-
-        let baseline = 0;
-        if (last3.length > 0) {
-            baseline = totalProfit / last3.length;
-        } else {
-            baseline = (co.profitLastMonth || 0) * 0.9;
-        }
-
-        co.baselineProfit = Math.max(baseline, 500);
-        co.events.push(`👔 Gerente contratado. Ingreso Base fijado en: ${formatCurrency(co.baselineProfit)}`);
-
-        GameState.ownedCompanies.push(co);
-
-        GameState.company = null;
-        GameState.jobTitle = 'Magnate (Sin empresa activa)';
-        GameState.salary = 0; // FIX: Stop paying CEO salary when automated
-        JobSystem.currentCareerPath = 'none';
-
-        return { success: true, message: `¡Empresa automatizada! ${co.name} ahora genera ingresos pasivos.` };
     },
+
 
     setStrategicOption(category, value) {
         if (!GameState.company) return;
@@ -2032,7 +2040,7 @@ const CompanyModule = {
             const increasePct = wageSteps * 0.10;
             emp.requiredWage = Math.floor(emp.startWage * (1 + increasePct));
 
-            if (emp.autoWage) {
+            if (emp.autoWage || (co.upgrades && co.upgrades.autoPayroll)) {
                 emp.salary = emp.requiredWage;
             }
 
@@ -8422,26 +8430,6 @@ const UI = {
                                             <div style="font-size: 0.7rem; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.5px;">📈 Beneficio</div>
                                             <div style="font-size: 1.2rem; font-weight: 800; color: ${co.profitLastMonth >= 0 ? '#4ade80' : '#f87171'};">${co.profitLastMonth >= 0 ? '+' : ''}${formatCurrency(co.profitLastMonth)}</div>
                                         </div>
-                                        ${(() => {
-                        const loc = CompanyModule.locations[co.locationId];
-                        const locationMaxStaff = loc?.maxStaff || 15;
-                        const autoCost = Math.max(30000, (co.profitLastMonth || 0) * 3);
-                        const hasStaff = co.staff.length >= locationMaxStaff && co.maxStaff >= locationMaxStaff;
-                        const hasMoney = co.cash >= autoCost;
-
-                        const canAffordAuto = hasMoney && hasStaff;
-
-                        let reqText = '';
-                        if (!hasStaff) reqText = `Req: ${locationMaxStaff} Empleados (${co.staff.length}/${locationMaxStaff})`;
-                        else if (!hasMoney) reqText = `Req: ${formatCurrency(autoCost)} (Caja: ${formatCurrency(co.cash)})`;
-
-                        return `
-                                            <button id="btn-automate" ${!canAffordAuto ? 'disabled' : ''} style="background: linear-gradient(135deg, #fbbf24, #f59e0b); color: #0f172a; border: none; padding: 12px 20px; border-radius: 10px; font-weight: 800; font-size: 0.8rem; cursor: ${canAffordAuto ? 'pointer' : 'not-allowed'}; box-shadow: 0 3px 0 #b45309; transition: all 0.15s; opacity: ${canAffordAuto ? '1' : '0.8'}; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;">
-                                                <span>🤖 Automatizar</span>
-                                                ${!canAffordAuto ? `<span style="font-size:0.65rem; color:#78350f; font-weight:700;">${reqText}</span>` : ''}
-                                            </button>
-                                            `;
-                    })()}
                                     </div>
                                 </div>
                             </div>
@@ -8481,21 +8469,7 @@ const UI = {
                     };
                 });
 
-                document.getElementById('btn-automate').onclick = () => {
-                    const cost = Math.max(30000, (co.profitLastMonth || 0) * 3);
-                    UI.confirmModal('Contratar Gerente', `Coste: ${formatCurrency(cost)}\n\n⚠️ Tu empresa pasará a ser PASIVA.\nPerderás el control manual.\n¿Deseas automatizarla?`, () => {
-                        const r = CompanyModule.hireManager();
-                        if (r) {
-                            UI.showModal(r.success ? '¡Éxito!' : 'Error', r.message, [
-                                {
-                                    text: 'Aceptar', style: 'primary', fn: () => {
-                                        if (r.success) { UI.updateJob(JobSystem); UI.updateHeader(); UI.updateDashboard(); }
-                                    }
-                                }
-                            ]);
-                        }
-                    });
-                };
+
 
 
                 const tabContent = document.getElementById('co-tab-content');
@@ -8671,7 +8645,7 @@ const UI = {
                 } else if (activeTab === 'staff') {
                     let staffHtml = '';
                     let upgradeCost = 0;
-                    let upgradeText = "Ampliar Oficina";
+                    let upgradeText = "Ampliar Negocio";
                     let upgradeDisabled = "";
 
                     // Get location-based max staff
@@ -8750,9 +8724,6 @@ const UI = {
                                         </div>
                                         <div style="display:flex; justify-content:space-between; align-items:center; margin-top:5px;">
                                             <span style="font-size:0.7rem; color:#64748b;">Mín: ${formatCurrency(emp.requiredWage)}</span>
-                                            <label style="font-size:0.7rem; color:#cbd5e1; cursor:pointer;">
-                                                <input type="checkbox" ${emp.autoWage ? 'checked' : ''} onchange="toggleAutoWage(${i})"> Auto-subida
-                                            </label>
                                         </div>
                                     </div>
                                     
@@ -8772,28 +8743,46 @@ const UI = {
                             <div class="comp-dash-container">
                                 <div class="staff-header" style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #334155; padding-bottom:15px; flex-wrap: wrap; gap: 10px;">
                                     <h3 style="margin:0;">👥 Plantilla (${co.staff.length} / ${co.maxStaff})</h3>
-                                    <button id="btn-upgrade-office" ${upgradeDisabled} style="
-                                        display: inline-flex;
-                                        align-items: center;
-                                        gap: 8px;
-                                        padding: 10px 18px;
-                                        border-radius: 10px;
-                                        font-weight: 700;
-                                        font-size: 0.85rem;
-                                        border: none;
-                                        cursor: ${upgradeDisabled ? 'not-allowed' : 'pointer'};
-                                        transition: all 0.2s;
-                                        ${upgradeDisabled ?
-                            'background: #334155; color: #64748b; opacity: 0.6;' :
-                            'background: linear-gradient(135deg, #a855f7, #7c3aed); color: white; box-shadow: 0 4px 15px rgba(168, 85, 247, 0.3);'
-                        }
-                                    "
-                                    onmouseover="${upgradeDisabled ? '' : `this.style.transform='translateY(-2px)'; this.style.boxShadow='0 6px 20px rgba(168, 85, 247, 0.4)'`}"
-                                    onmouseout="${upgradeDisabled ? '' : `this.style.transform='translateY(0)'; this.style.boxShadow='0 4px 15px rgba(168, 85, 247, 0.3)'`}"
-                                    >
-                                        <span style="font-size: 1.1rem;">🏢</span>
-                                        ${upgradeText}
-                                    </button>
+                                    <div style="display: flex; gap: 10px; align-items: center;">
+                                        <button id="btn-upgrade-office" ${upgradeDisabled} style="
+                                            display: inline-flex; align-items: center; gap: 8px; padding: 10px 18px; border-radius: 10px; font-weight: 700; font-size: 0.85rem; border: none; cursor: ${upgradeDisabled ? 'not-allowed' : 'pointer'}; transition: all 0.2s;
+                                            ${upgradeDisabled ? 'background: #334155; color: #64748b; opacity: 0.6;' : 'background: linear-gradient(135deg, #a855f7, #7c3aed); color: white; box-shadow: 0 4px 15px rgba(168, 85, 247, 0.3);'}
+                                        ">
+                                            <span style="font-size: 1.1rem;">🏢</span>
+                                            ${upgradeText}
+                                        </button>
+                                        
+                                        <!-- PAYROLL AUTOMATION BUTTON -->
+                                        ${(() => {
+                            const hasAuto = co.upgrades && co.upgrades.autoPayroll;
+                            const canBuy = !hasAuto && co.maxStaff > 5 && co.cash >= 25000;
+                            const btnStyle = hasAuto
+                                ? 'background: linear-gradient(135deg, #10b981, #059669); color: white; box-shadow: 0 4px 15px rgba(16, 185, 129, 0.3); pointer-events: none;'
+                                : (canBuy ? 'background: linear-gradient(135deg, #6366f1, #4f46e5); color: white; box-shadow: 0 4px 15px rgba(99, 102, 241, 0.3);' : 'background: #334155; color: #64748b; opacity: 0.6;');
+
+                            // Ensure user sees price or status
+                            let label = hasAuto ? 'RRHH Activo' : `Contratar RRHH (${formatCurrency(25000)})`;
+                            let subLabel = '';
+
+                            if (!hasAuto && !canBuy) {
+                                if (co.maxStaff <= 5) {
+                                    subLabel = 'Req: Negocio Nivel 2+';
+                                } else if (co.cash < 25000) {
+                                    subLabel = 'Faltan Fondos';
+                                }
+                            }
+
+                            return `
+                                                <button id="btn-upgrade-payroll" ${!canBuy && !hasAuto ? 'disabled' : ''} style="display: inline-flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; padding: 8px 18px; border-radius: 10px; font-weight: 700; font-size: 0.85rem; border: none; cursor: ${canBuy ? 'pointer' : 'default'}; transition: all 0.2s; ${btnStyle} min-height: 46px;">
+                                                    <div style="display: flex; align-items: center; gap: 8px;">
+                                                        <span style="font-size: 1.1rem;">${hasAuto ? '👥' : '📋'}</span>
+                                                        <span>${label}</span>
+                                                    </div>
+                                                    ${subLabel ? `<span style="font-size: 0.7rem; opacity: 0.8; font-weight: 400;">${subLabel}</span>` : ''}
+                                                </button>
+                                            `;
+                        })()}
+                                    </div>
                                 </div>
                                 
                                 <div id="comp-hire-tab" style="
@@ -8882,6 +8871,18 @@ const UI = {
                         const r = CompanyModule.upgradeOffice();
                         if (r) { showGameAlert(r.message, r.success ? 'success' : 'error'); UI.updateJob(JobSystem); }
                     };
+
+                    const btnPayroll = document.getElementById('btn-upgrade-payroll');
+                    if (btnPayroll && !btnPayroll.disabled) {
+                        btnPayroll.onclick = () => {
+                            const res = CompanyModule.buyUpgrade('autoPayroll');
+                            if (res) {
+                                UI.showModal(res.success ? '¡Departamento RRHH Contratado!' : 'Error', res.message, [
+                                    { text: 'Excelente', style: 'primary', fn: () => UI.updateJob(JobSystem) }
+                                ]);
+                            }
+                        };
+                    }
 
                     window.hireRole = (role, sal) => {
                         // Validate Expert hiring restriction
