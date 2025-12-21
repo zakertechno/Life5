@@ -2794,6 +2794,12 @@ const TutorialSystem = {
                 transform: translateX(-50%);
                 border-top-color: rgba(56, 189, 248, 0.5);
             }
+            .tutorial-arrow.top {
+                top: -20px;
+                left: 50%;
+                transform: translateX(-50%);
+                border-bottom-color: rgba(56, 189, 248, 0.5);
+            }
         `;
         document.head.appendChild(style);
     },
@@ -2876,13 +2882,14 @@ const TutorialSystem = {
         const tooltipRect = tooltip.getBoundingClientRect();
 
         // Default: Above
-        let top = targetRect.top - tooltipRect.height - 20;
+        let offset = 8; // Reduced from 12 for tighter fit
+        let top = targetRect.top - tooltipRect.height - offset;
         let left = targetRect.left + (targetRect.width / 2) - (tooltipRect.width / 2);
         let arrowClass = 'bottom';
 
         // Check if top flows off screen, if so put below
         if (top < 10) {
-            top = targetRect.bottom + 20;
+            top = targetRect.bottom + offset;
             arrowClass = 'top';
         }
 
@@ -3547,7 +3554,7 @@ const TutorialSystem = {
                 style: 'success',
                 fn: () => {
                     // Scroll to top immediately to ensure header is visible
-                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                    window.scrollTo({ top: 0, behavior: 'auto' });
 
                     // Mobile/Header Home Button logic
                     const homeTab = document.querySelector('.nav-btn[data-view="dashboard"]');
@@ -3604,13 +3611,14 @@ const TutorialSystem = {
                 // Mark as seen only on success
                 GameState.tutorialFlags.seenCompanySummary = true;
                 PersistenceModule.saveGame();
+                this.lockScroll();
 
                 // Find the summary cards container (first grid usually)
                 const grid = summaryTab.querySelector('div[style*="display:grid"]') || summaryTab.firstElementChild;
 
                 if (grid) {
                     this.addHighlight(grid);
-                    grid.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    grid.scrollIntoView({ behavior: 'auto', block: 'center' });
 
                     this.showTooltip(
                         grid,
@@ -3621,30 +3629,80 @@ const TutorialSystem = {
                             this.removeHighlights();
                             this.hideTooltip();
 
-                            // STEP 2: General Status
+                            // STEP 2: News (Novedades) - NEW STEP
                             setTimeout(() => {
-                                const statusCard = document.getElementById('comp-status-card');
-                                if (statusCard) {
-                                    this.addHighlight(statusCard);
-                                    statusCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                                const newsCard = document.getElementById('comp-summary-news');
+                                if (newsCard) {
+                                    this.addHighlight(newsCard);
+                                    newsCard.scrollIntoView({ behavior: 'auto', block: 'center' });
 
                                     this.showTooltip(
-                                        statusCard,
-                                        'Estado General',
-                                        'Aquí controlas tu <strong>Reputación</strong> y la capacidad de atender clientes.<br><br>Una buena reputación atrae más ventas, pero necesitas capacidad para atenderlas.',
-                                        'Ir a Finanzas',
+                                        newsCard,
+                                        'Novedades',
+                                        'Mantente al día. <br><br>Aquí verás <strong>quejas de empleados</strong>. <br><br>Será tu señal para <strong>contratar más personal</strong> o <strong>subirles el sueldo</strong>.',
+                                        'Siguiente',
                                         () => {
                                             this.removeHighlights();
-                                            this.hideOverlay();
                                             this.hideTooltip();
 
-                                            // Auto-navigate to Finance
-                                            const financeTab = document.querySelector('button[data-tab="finance"]');
-                                            if (financeTab) financeTab.click();
+                                            // STEP 3: General Status
+                                            setTimeout(() => {
+                                                const statusCard = document.getElementById('comp-status-card');
+                                                if (statusCard) {
+                                                    this.addHighlight(statusCard);
+                                                    statusCard.scrollIntoView({ behavior: 'auto', block: 'center' });
+
+                                                    this.showTooltip(
+                                                        statusCard,
+                                                        'Estado General',
+                                                        'Aquí controlas tu <strong>Reputación</strong> y la capacidad de atender clientes.<br><br>Una buena reputación atrae más ventas, pero necesitas capacidad para atenderlas.',
+                                                        'Ir a Finanzas',
+                                                        () => {
+                                                            this.removeHighlights();
+                                                            this.hideOverlay();
+                                                            this.hideTooltip();
+                                                            this.unlockScroll();
+
+                                                            // Auto-navigate to Finance
+                                                            const financeTab = document.querySelector('button[data-tab="finance"]');
+                                                            if (financeTab) financeTab.click();
+                                                        }
+                                                    );
+                                                } else {
+                                                    this.hideOverlay();
+                                                }
+                                            }, 500);
                                         }
                                     );
                                 } else {
-                                    this.hideOverlay();
+                                    // Fallback if news card not found, go directly to status card
+                                    // STEP 2: General Status (original STEP 2)
+                                    setTimeout(() => {
+                                        const statusCard = document.getElementById('comp-status-card');
+                                        if (statusCard) {
+                                            this.addHighlight(statusCard);
+                                            statusCard.scrollIntoView({ behavior: 'auto', block: 'center' });
+
+                                            this.showTooltip(
+                                                statusCard,
+                                                'Estado General',
+                                                'Aquí controlas tu <strong>Reputación</strong> y la capacidad de atender clientes.<br><br>Una buena reputación atrae más ventas, pero necesitas capacidad para atenderlas.',
+                                                'Ir a Finanzas',
+                                                () => {
+                                                    this.removeHighlights();
+                                                    this.hideOverlay();
+                                                    this.hideTooltip();
+                                                    this.unlockScroll();
+
+                                                    // Auto-navigate to Finance
+                                                    const financeTab = document.querySelector('button[data-tab="finance"]');
+                                                    if (financeTab) financeTab.click();
+                                                }
+                                            );
+                                        } else {
+                                            this.hideOverlay();
+                                        }
+                                    }, 500);
                                 }
                             }, 500);
                         }
@@ -3678,9 +3736,10 @@ const TutorialSystem = {
                 clearInterval(check);
                 GameState.tutorialFlags.seenCompanyPersonnel = true;
                 PersistenceModule.saveGame();
+                this.lockScroll();
 
                 this.addHighlight(hireTab);
-                hireTab.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                hireTab.scrollIntoView({ behavior: 'auto', block: 'center' });
 
                 this.showTooltip(
                     hireTab,
@@ -3691,6 +3750,7 @@ const TutorialSystem = {
                         this.removeHighlights();
                         this.hideOverlay();
                         this.hideTooltip();
+                        this.unlockScroll();
                     }
                 );
             } else {
@@ -3719,10 +3779,11 @@ const TutorialSystem = {
                 clearInterval(check);
                 GameState.tutorialFlags.seenCompanyProduct = true;
                 PersistenceModule.saveGame();
+                this.lockScroll();
 
                 // STEP 1: Product Development (I+D)
                 this.addHighlight(target);
-                target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                target.scrollIntoView({ behavior: 'auto', block: 'center' });
 
                 this.showTooltip(
                     target,
@@ -3738,7 +3799,7 @@ const TutorialSystem = {
                             const pricing = document.getElementById('comp-pricing-card');
                             if (pricing) {
                                 this.addHighlight(pricing);
-                                pricing.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                                pricing.scrollIntoView({ behavior: 'auto', block: 'center' });
 
                                 this.showTooltip(
                                     pricing,
@@ -3754,7 +3815,7 @@ const TutorialSystem = {
                                             const rep = document.getElementById('comp-reputation-card');
                                             if (rep) {
                                                 this.addHighlight(rep);
-                                                rep.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                                                rep.scrollIntoView({ behavior: 'auto', block: 'center' });
 
                                                 this.showTooltip(
                                                     rep,
@@ -3770,7 +3831,7 @@ const TutorialSystem = {
                                                             const prov = document.getElementById('comp-providers-section');
                                                             if (prov) {
                                                                 this.addHighlight(prov);
-                                                                prov.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                                                                prov.scrollIntoView({ behavior: 'auto', block: 'center' });
 
                                                                 this.showTooltip(
                                                                     prov,
@@ -3781,6 +3842,7 @@ const TutorialSystem = {
                                                                         this.removeHighlights();
                                                                         this.hideOverlay();
                                                                         this.hideTooltip();
+                                                                        this.unlockScroll();
                                                                     }
                                                                 );
                                                             } else {
@@ -3829,7 +3891,7 @@ const TutorialSystem = {
                 const target = campaigns[0].parentElement; // The grid/container
                 if (target) {
                     this.addHighlight(target);
-                    target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    target.scrollIntoView({ behavior: 'auto', block: 'center' });
 
                     this.showTooltip(
                         target,
@@ -3868,10 +3930,11 @@ const TutorialSystem = {
                 clearInterval(check);
                 GameState.tutorialFlags.seenCompanyFinance = true;
                 PersistenceModule.saveGame();
+                this.lockScroll();
 
                 // STEP 1: Cash Movements
                 this.addHighlight(target);
-                target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                target.scrollIntoView({ behavior: 'auto', block: 'center' });
 
                 this.showTooltip(
                     target,
@@ -3887,7 +3950,7 @@ const TutorialSystem = {
                             const salary = document.getElementById('comp-finance-salary-card');
                             if (salary) {
                                 this.addHighlight(salary);
-                                salary.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                                salary.scrollIntoView({ behavior: 'auto', block: 'center' });
 
                                 this.showTooltip(
                                     salary,
@@ -3903,7 +3966,7 @@ const TutorialSystem = {
                                             const danger = document.getElementById('comp-finance-danger-card');
                                             if (danger) {
                                                 this.addHighlight(danger);
-                                                danger.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                                                danger.scrollIntoView({ behavior: 'auto', block: 'center' });
 
                                                 this.showTooltip(
                                                     danger,
@@ -3960,7 +4023,7 @@ const TutorialSystem = {
 
                 // STEP 1: Infrastructure
                 this.addHighlight(target);
-                target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                target.scrollIntoView({ behavior: 'auto', block: 'center' });
 
                 this.showTooltip(
                     target,
@@ -3976,7 +4039,7 @@ const TutorialSystem = {
                             const channels = document.getElementById('comp-marketing-channels-section');
                             if (channels) {
                                 this.addHighlight(channels);
-                                channels.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                                channels.scrollIntoView({ behavior: 'auto', block: 'center' });
 
                                 this.showTooltip(
                                     channels,
@@ -3992,7 +4055,7 @@ const TutorialSystem = {
                                             const analysis = document.getElementById('comp-marketing-analysis-card');
                                             if (analysis) {
                                                 this.addHighlight(analysis);
-                                                analysis.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                                                analysis.scrollIntoView({ behavior: 'auto', block: 'center' });
 
                                                 this.showTooltip(
                                                     analysis,
@@ -4031,10 +4094,14 @@ const TutorialSystem = {
     // Helper to continue the sequence (split for readability)
     continueToMonthlyFlow() {
         this.showOverlay();
+        this.lockScroll();
         setTimeout(() => {
             // 1. Net Worth (Total Wealth)
             const netWorth = document.querySelector('.metric-card.net-worth');
-            if (netWorth) this.addHighlight('.metric-card.net-worth');
+            if (netWorth) {
+                this.addHighlight('.metric-card.net-worth');
+                netWorth.scrollIntoView({ behavior: 'auto', block: 'center' });
+            }
 
             this.showTooltip(
                 '.metric-card.net-worth',
@@ -4048,7 +4115,10 @@ const TutorialSystem = {
                     // 2. Cash (Liquidity)
                     setTimeout(() => {
                         const cash = document.querySelector('.metric-card.cash');
-                        if (cash) this.addHighlight('.metric-card.cash');
+                        if (cash) {
+                            this.addHighlight('.metric-card.cash');
+                            cash.scrollIntoView({ behavior: 'auto', block: 'center' });
+                        }
 
                         this.showTooltip(
                             '.metric-card.cash',
@@ -4062,7 +4132,10 @@ const TutorialSystem = {
                                 // 3. Monthly Flow
                                 setTimeout(() => {
                                     const mFlow = document.querySelector('.metric-card.monthly-flow');
-                                    if (mFlow) this.addHighlight('.metric-card.monthly-flow');
+                                    if (mFlow) {
+                                        this.addHighlight('.metric-card.monthly-flow');
+                                        mFlow.scrollIntoView({ behavior: 'auto', block: 'center' });
+                                    }
 
                                     this.showTooltip(
                                         '.metric-card.monthly-flow',
@@ -4073,6 +4146,7 @@ const TutorialSystem = {
                                             this.removeHighlights();
                                             this.hideTooltip();
                                             this.hideOverlay(); // Remove blocking
+                                            this.unlockScroll();
 
                                             // Final message
                                             setTimeout(() => {
@@ -8192,7 +8266,8 @@ const UI = {
                                     </div>
 
                                     <!-- Novedades Card -->
-                                    <div style="background: linear-gradient(145deg, rgba(56, 189, 248, 0.08), transparent); border: 1px solid rgba(56, 189, 248, 0.2); border-radius: 16px; padding: 20px;">
+                                    <!-- Novedades Card -->
+                                    <div id="comp-summary-news" style="background: linear-gradient(145deg, rgba(56, 189, 248, 0.08), transparent); border: 1px solid rgba(56, 189, 248, 0.2); border-radius: 16px; padding: 20px;">
                                         <h3 style="margin: 0 0 15px 0; color: #38bdf8; font-size: 1rem; display: flex; align-items: center; gap: 8px;">
                                             <span style="font-size: 1.3rem;">📢</span> Novedades
                                         </h3>
@@ -8908,8 +8983,10 @@ const UI = {
                                     </div>
                                 </div>
                                 
-                                <h3 id="comp-providers-section" style="border-bottom:1px solid #334155; padding-bottom:10px; margin: 25px 0 20px 0;">📦 Proveedores (Insumos)</h3>
-                                <div class="options-grid">${provOpts}</div>
+                                <div id="comp-providers-section">
+                                    <h3 style="border-bottom:1px solid #334155; padding-bottom:10px; margin: 25px 0 20px 0;">📦 Proveedores (Insumos)</h3>
+                                    <div class="options-grid">${provOpts}</div>
+                                </div>
                             </div>
                         `;
 
@@ -9053,8 +9130,10 @@ const UI = {
                                         </div>
                                     </div>
                                     
-                                    <h3 id="comp-marketing-channels-section" style="border-bottom:1px solid #334155; padding-bottom:10px; margin-bottom:20px; font-size: 1.1rem;">📡 Canales de Publicidad</h3>
-                                    <div class="options-grid" style="margin-bottom:25px; display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 15px;">${mktOpts}</div>
+                                    <div id="comp-marketing-channels-section">
+                                        <h3 style="border-bottom:1px solid #334155; padding-bottom:10px; margin-bottom:20px; font-size: 1.1rem;">📡 Canales de Publicidad</h3>
+                                        <div class="options-grid" style="margin-bottom:25px; display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 15px;">${mktOpts}</div>
+                                    </div>
 
                                     <div id="comp-marketing-analysis-card" class="strat-card highlight">
                                         <h4 class="staff-role-title" style="color:#38bdf8;">📈 Análisis de Demanda</h4>
