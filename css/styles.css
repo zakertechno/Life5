@@ -3521,8 +3521,8 @@
                 margin-bottom: 5px !important;
                 /* Add space for 3D shadow */
                 padding-bottom: 5px !important;
-                margin-top: -4px !important;
-                /* Pull up slightly */
+                margin-top: 8px !important;
+                /* Add separation from money display */
             }
         }
 
