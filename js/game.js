@@ -3599,6 +3599,7 @@ const TutorialSystem = {
 
         this.injectStyles();
         this.showOverlay();
+        this.lockScroll();
 
         // Retry check for element (up to 5 times, 200ms apart)
         let attempts = 0;
@@ -3611,7 +3612,6 @@ const TutorialSystem = {
                 // Mark as seen only on success
                 GameState.tutorialFlags.seenCompanySummary = true;
                 PersistenceModule.saveGame();
-                this.lockScroll();
 
                 // Find the summary cards container (first grid usually)
                 const grid = summaryTab.querySelector('div[style*="display:grid"]') || summaryTab.firstElementChild;
@@ -3670,6 +3670,7 @@ const TutorialSystem = {
                                                     );
                                                 } else {
                                                     this.hideOverlay();
+                                                    this.unlockScroll();
                                                 }
                                             }, 500);
                                         }
@@ -3701,6 +3702,7 @@ const TutorialSystem = {
                                             );
                                         } else {
                                             this.hideOverlay();
+                                            this.unlockScroll();
                                         }
                                     }, 500);
                                 }
@@ -3710,11 +3712,13 @@ const TutorialSystem = {
                 } else {
                     // Should not happen if comp-summary-tab exists
                     this.hideOverlay();
+                    this.unlockScroll();
                 }
             } else {
                 if (attempts >= 10) {
                     clearInterval(check);
                     this.hideOverlay();
+                    this.unlockScroll();
                     console.warn('Tutorial Target Not Found: comp-summary-tab');
                 }
             }
@@ -3981,12 +3985,14 @@ const TutorialSystem = {
                                                 );
                                             } else {
                                                 this.hideOverlay();
+                                                this.unlockScroll();
                                             }
                                         }, 500);
                                     }
                                 );
                             } else {
                                 this.hideOverlay();
+                                this.unlockScroll();
                             }
                         }, 500);
                     }
@@ -3995,6 +4001,7 @@ const TutorialSystem = {
                 if (attempts >= 10) {
                     clearInterval(check);
                     this.hideOverlay();
+                    this.unlockScroll();
                 }
             }
         }, 200);
@@ -4070,12 +4077,14 @@ const TutorialSystem = {
                                                 );
                                             } else {
                                                 this.hideOverlay();
+                                                this.unlockScroll();
                                             }
                                         }, 500);
                                     }
                                 );
                             } else {
                                 this.hideOverlay();
+                                this.unlockScroll();
                             }
                         }, 500);
                     }
@@ -4084,6 +4093,7 @@ const TutorialSystem = {
                 if (attempts >= 10) {
                     clearInterval(check);
                     this.hideOverlay();
+                    this.unlockScroll();
                 }
             }
         }, 200);
